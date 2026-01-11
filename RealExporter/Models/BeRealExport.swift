@@ -5,12 +5,21 @@ struct BeRealExport {
     let posts: [Post]
     let memories: [Memory]
     let conversationImages: [ConversationImage]
+    let comments: [Comment]
     let baseURL: URL
 
-    var totalImageCount: Int {
-        let postImages = posts.filter { $0.hasBothImages }.count
-        let memoryImages = memories.filter { $0.hasBothImages }.count
-        return postImages + memoryImages
+    var uniqueBeRealCount: Int {
+        var uniquePaths = Set<String>()
+
+        for post in posts where post.hasBothImages {
+            uniquePaths.insert(post.primary.path)
+        }
+
+        for memory in memories where memory.hasBothImages {
+            uniquePaths.insert(memory.backImageForExport.path)
+        }
+
+        return uniquePaths.count
     }
 
     var dateRange: ClosedRange<Date>? {

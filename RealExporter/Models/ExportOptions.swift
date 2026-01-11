@@ -3,6 +3,7 @@ import Foundation
 enum ImageStyle: String, CaseIterable, Identifiable {
     case combined = "Combined"
     case separate = "Separate"
+    case both = "Both"
 
     var id: String { rawValue }
 
@@ -12,6 +13,8 @@ enum ImageStyle: String, CaseIterable, Identifiable {
             return "Front camera overlaid on back camera"
         case .separate:
             return "Front and back as separate files"
+        case .both:
+            return "Export both combined and separate versions"
         }
     }
 }
@@ -36,6 +39,7 @@ struct ExportOptions {
     var imageStyle: ImageStyle = .separate
     var folderStructure: FolderStructure = .byDate
     var includeConversations: Bool = true
+    var includeComments: Bool = true
     var destinationURL: URL?
 
     var isValid: Bool {

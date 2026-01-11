@@ -102,19 +102,22 @@ struct ExportOptionsView: View {
 
     private var contentSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Conversations", systemImage: "bubble.left.and.bubble.right")
+            Label("Extras", systemImage: "plus.circle")
                 .font(.headline)
 
             Toggle(isOn: $options.includeConversations) {
                 HStack {
-                    Image(systemName: "photo.on.rectangle.angled")
-                    Text("Include conversation photos (\(data.conversationImages.count))")
+                    Image(systemName: "bubble.left.and.bubble.right")
+                    Text("Conversation photos (\(data.conversationImages.count))")
                 }
             }
 
-            Text("Photos from chats will be exported to a separate Conversations folder")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Toggle(isOn: $options.includeComments) {
+                HStack {
+                    Image(systemName: "text.bubble")
+                    Text("Comments (\(data.comments.count))")
+                }
+            }
         }
     }
 

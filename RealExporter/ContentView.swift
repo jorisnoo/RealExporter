@@ -114,7 +114,7 @@ struct ContentView: View {
 
         appState = .exporting
         exportState = .exporting
-        exportProgress = ExportProgress(current: 0, total: data.totalImageCount, currentItem: "")
+        exportProgress = ExportProgress(current: 0, total: data.uniqueBeRealCount, currentItem: "")
 
         Task {
             do {

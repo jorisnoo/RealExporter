@@ -38,18 +38,32 @@ class ImageProcessor {
         backPath: URL,
         frontPath: URL,
         outputPath: URL,
-        combined: Bool,
+        style: ImageStyle,
         metadata: ExportMetadata
     ) throws {
-        if combined {
+        switch style {
+        case .combined:
             try saveCombinedImage(
                 backPath: backPath,
                 frontPath: frontPath,
                 outputPath: outputPath,
                 metadata: metadata
             )
-        } else {
+        case .separate:
             try saveSeparateImages(
+                backPath: backPath,
+                frontPath: frontPath,
+                outputPath: outputPath,
+                metadata: metadata
+            )
+        case .both:
+            try saveSeparateImages(
+                backPath: backPath,
+                frontPath: frontPath,
+                outputPath: outputPath,
+                metadata: metadata
+            )
+            try saveCombinedImage(
                 backPath: backPath,
                 frontPath: frontPath,
                 outputPath: outputPath,
@@ -74,8 +88,8 @@ class ImageProcessor {
         let baseName = outputPath.deletingPathExtension().lastPathComponent
         let directory = outputPath.deletingLastPathComponent()
 
-        let backOutputPath = directory.appendingPathComponent("\(baseName)_back.jpg")
-        let frontOutputPath = directory.appendingPathComponent("\(baseName)_front.jpg")
+        let backOutputPath = directory.appendingPathComponent("\(baseName)_combined_back.jpg")
+        let frontOutputPath = directory.appendingPathComponent("\(baseName)_combined_front.jpg")
 
         let backAsBg = try stitchImages(back: backImage, front: frontImage)
         try saveAsJPEG(image: backAsBg, to: backOutputPath, metadata: metadata)

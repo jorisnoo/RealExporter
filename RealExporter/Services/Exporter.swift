@@ -48,39 +48,54 @@ class Exporter {
 
         isCancelled = false
 
-        var itemsToExport: [(type: String, date: Date, backPath: URL, frontPath: URL, location: Location?, caption: String?)] = []
+        var mergedItems: [String: (date: Date, backPath: URL, frontPath: URL, location: Location?, caption: String?)] = [:]
 
         for post in data.posts where post.hasBothImages {
             let backPath = post.primary.localPath(relativeTo: data.baseURL)
             let frontPath = post.secondary.localPath(relativeTo: data.baseURL)
 
-            if fileManager.fileExists(atPath: backPath.path) &&
-               fileManager.fileExists(atPath: frontPath.path) {
-                itemsToExport.append((
-                    type: "post",
-                    date: post.takenAt,
-                    backPath: backPath,
-                    frontPath: frontPath,
-                    location: post.location,
-                    caption: post.caption
-                ))
+            guard fileManager.fileExists(atPath: backPath.path) &&
+                  fileManager.fileExists(atPath: frontPath.path) else {
+                continue
             }
+
+            let key = post.primary.path
+            mergedItems[key] = (
+                date: post.takenAt,
+                backPath: backPath,
+                frontPath: frontPath,
+                location: post.location,
+                caption: post.caption
+            )
         }
 
         for memory in data.memories where memory.hasBothImages {
             let backPath = memory.backImageForExport.localPath(relativeTo: data.baseURL)
             let frontPath = memory.frontImageForExport.localPath(relativeTo: data.baseURL)
 
-            if fileManager.fileExists(atPath: backPath.path) &&
-               fileManager.fileExists(atPath: frontPath.path) {
-                itemsToExport.append((
-                    type: "memory",
+            guard fileManager.fileExists(atPath: backPath.path) &&
+                  fileManager.fileExists(atPath: frontPath.path) else {
+                continue
+            }
+
+            let key = memory.backImageForExport.path
+            if mergedItems[key] == nil {
+                mergedItems[key] = (
                     date: memory.takenTime,
                     backPath: backPath,
                     frontPath: frontPath,
                     location: nil,
                     caption: memory.caption
-                ))
+                )
+            }
+        }
+
+        let itemsToExport = mergedItems.map { (postId: $0.key, item: $0.value) }.sorted { $0.item.date < $1.item.date }
+
+        var commentsByPostId: [String: [String]] = [:]
+        if options.includeComments {
+            for comment in data.comments {
+                commentsByPostId[comment.postId, default: []].append(comment.content)
             }
         }
 
@@ -92,8 +107,9 @@ class Exporter {
         let folderStructure = options.folderStructure
 
         var currentIndex = 0
+        var commentsByFolder: [URL: [(filename: String, comments: [String])]] = [:]
 
-        for item in itemsToExport {
+        for (postId, item) in itemsToExport {
             await Task.yield()
 
             if isCancelled {
@@ -102,7 +118,6 @@ class Exporter {
 
             let outputPath = try buildOutputPath(
                 for: item.date,
-                type: item.type,
                 folderStructure: folderStructure,
                 destinationURL: destinationURL,
                 dateFormatter: dateFormatter
@@ -116,17 +131,23 @@ class Exporter {
 
             let backPath = item.backPath
             let frontPath = item.frontPath
-            let combined = imageStyle == .combined
 
             try await Task.detached {
                 try await ImageProcessor.shared.processAndSave(
                     backPath: backPath,
                     frontPath: frontPath,
                     outputPath: outputPath,
-                    combined: combined,
+                    style: imageStyle,
                     metadata: metadata
                 )
             }.value
+
+            let postIdWithoutExt = (postId as NSString).lastPathComponent.replacingOccurrences(of: ".webp", with: "")
+            if let postComments = commentsByPostId[postIdWithoutExt], !postComments.isEmpty {
+                let folder = outputPath.deletingLastPathComponent()
+                let filename = "bereal_\(dateFormatter.string(from: item.date))"
+                commentsByFolder[folder, default: []].append((filename: filename, comments: postComments))
+            }
 
             currentIndex += 1
             let progress = ExportProgress(
@@ -150,7 +171,15 @@ class Exporter {
                     throw ExporterError.cancelled
                 }
 
-                let outputPath = conversationsFolder.appendingPathComponent(image.filename)
+                let ext = image.url.pathExtension
+                let outputFilename: String
+                if let date = image.date {
+                    outputFilename = "chat_\(dateFormatter.string(from: date))_\(image.id.suffix(8)).\(ext)"
+                } else {
+                    outputFilename = image.filename
+                }
+
+                let outputPath = conversationsFolder.appendingPathComponent(outputFilename)
 
                 if !fileManager.fileExists(atPath: outputPath.path) {
                     try fileManager.copyItem(at: image.url, to: outputPath)
@@ -160,21 +189,36 @@ class Exporter {
                 let progress = ExportProgress(
                     current: currentIndex,
                     total: total,
-                    currentItem: "Conversations/\(image.filename)"
+                    currentItem: "Conversations/\(outputFilename)"
                 )
                 progressHandler(progress)
+            }
+        }
+
+        if options.includeComments && !commentsByFolder.isEmpty {
+            for (folder, items) in commentsByFolder {
+                var content = ""
+                for item in items.sorted(by: { $0.filename < $1.filename }) {
+                    content += "\(item.filename):\n"
+                    for comment in item.comments {
+                        content += "  - \(comment)\n"
+                    }
+                    content += "\n"
+                }
+
+                let commentsPath = folder.appendingPathComponent("comments.txt")
+                try content.write(to: commentsPath, atomically: true, encoding: .utf8)
             }
         }
     }
 
     private func buildOutputPath(
         for date: Date,
-        type: String,
         folderStructure: FolderStructure,
         destinationURL: URL,
         dateFormatter: DateFormatter
     ) throws -> URL {
-        let filename = "bereal_\(type)_\(dateFormatter.string(from: date)).jpg"
+        let filename = "bereal_\(dateFormatter.string(from: date)).jpg"
 
         let outputDirectory: URL
         switch folderStructure {

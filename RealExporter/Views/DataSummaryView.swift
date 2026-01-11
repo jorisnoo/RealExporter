@@ -15,7 +15,7 @@ struct DataSummaryView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 24) {
-                    Text("Data Summary")
+                    Text("Summary")
                         .font(.largeTitle)
                         .fontWeight(.bold)
 
@@ -83,14 +83,8 @@ struct DataSummaryView: View {
         HStack(spacing: 32) {
             statItem(
                 icon: "camera.fill",
-                value: "\(data.posts.count)",
-                label: "Posts"
-            )
-
-            statItem(
-                icon: "clock.arrow.circlepath",
-                value: "\(data.memories.count)",
-                label: "Memories"
+                value: "\(data.uniqueBeRealCount)",
+                label: "BeReals"
             )
 
             statItem(
@@ -100,9 +94,9 @@ struct DataSummaryView: View {
             )
 
             statItem(
-                icon: "photo.stack.fill",
-                value: "\(data.totalImageCount)",
-                label: "Exportable"
+                icon: "text.bubble",
+                value: "\(data.comments.count)",
+                label: "Comments"
             )
         }
     }

@@ -140,14 +140,28 @@ class DataLoader {
         }
 
         let conversationImages = loadConversationImages(from: folderURL)
+        let comments = loadComments(from: folderURL, decoder: decoder)
 
         return BeRealExport(
             user: user,
             posts: posts,
             memories: memories,
             conversationImages: conversationImages,
+            comments: comments,
             baseURL: folderURL
         )
+    }
+
+    private func loadComments(from folderURL: URL, decoder: JSONDecoder) -> [Comment] {
+        let commentsURL = folderURL.appendingPathComponent("comments.json")
+
+        guard fileManager.fileExists(atPath: commentsURL.path),
+              let commentsData = try? Data(contentsOf: commentsURL),
+              let comments = try? decoder.decode([Comment].self, from: commentsData) else {
+            return []
+        }
+
+        return comments
     }
 
     private func loadConversationImages(from folderURL: URL) -> [ConversationImage] {
@@ -168,12 +182,24 @@ class DataLoader {
             return []
         }
 
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
         for conversationFolder in conversationFolders {
             let isDirectory = (try? conversationFolder.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
 
             guard isDirectory else { continue }
 
             let conversationId = conversationFolder.lastPathComponent
+
+            var messageDates: [String: Date] = [:]
+            let chatLogURL = conversationFolder.appendingPathComponent("chat_log.json")
+            if let chatLogData = try? Data(contentsOf: chatLogURL),
+               let chatLog = try? decoder.decode(ChatLog.self, from: chatLogData) {
+                for message in chatLog.messages {
+                    messageDates[message.id] = message.createdAt
+                }
+            }
 
             guard let files = try? fileManager.contentsOfDirectory(
                 at: conversationFolder,
@@ -186,11 +212,16 @@ class DataLoader {
             for file in files {
                 let ext = file.pathExtension.lowercased()
                 if imageExtensions.contains(ext) {
+                    let filename = file.lastPathComponent
+                    let messageId = filename.split(separator: "-").first.map(String.init)
+                    let date = messageId.flatMap { messageDates[$0] }
+
                     let image = ConversationImage(
-                        id: "\(conversationId)_\(file.lastPathComponent)",
+                        id: "\(conversationId)_\(filename)",
                         url: file,
                         conversationId: conversationId,
-                        filename: file.lastPathComponent
+                        filename: filename,
+                        date: date
                     )
                     images.append(image)
                 }
