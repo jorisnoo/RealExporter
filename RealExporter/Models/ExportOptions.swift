@@ -35,8 +35,18 @@ enum FolderStructure: String, CaseIterable, Identifiable {
     }
 }
 
+enum OverlayPosition: String, CaseIterable, Identifiable {
+    case topLeft = "Top Left"
+    case topRight = "Top Right"
+    case bottomLeft = "Bottom Left"
+    case bottomRight = "Bottom Right"
+
+    var id: String { rawValue }
+}
+
 struct ExportOptions {
     var imageStyle: ImageStyle = .separate
+    var overlayPosition: OverlayPosition = .topLeft
     var folderStructure: FolderStructure = .byDate
     var includeConversations: Bool = true
     var includeComments: Bool = true

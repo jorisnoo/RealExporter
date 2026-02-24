@@ -5,6 +5,7 @@ struct SourceSelectionView: View {
     @Binding var selectedURL: URL?
     @Binding var isLoading: Bool
     @State private var isDragging = false
+    @State private var showingGuide = false
 
     var body: some View {
         VStack(spacing: 32) {
@@ -19,9 +20,18 @@ struct SourceSelectionView: View {
             }
 
             dropZone
+
+            Button("Don't have your data yet?") {
+                showingGuide = true
+            }
+            .buttonStyle(.link)
+            .font(.subheadline)
         }
         .padding(40)
         .frame(minWidth: 500, minHeight: 400)
+        .sheet(isPresented: $showingGuide) {
+            DataRequestGuideView()
+        }
     }
 
     private var dropZone: some View {

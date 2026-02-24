@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CF6A13112F4DD8B900018A6B /* AppUpdater in Frameworks */ = {isa = PBXBuildFile; productRef = CF748F822F14800200799E78 /* AppUpdater */; };
+		CF6A13122F4DD8B900018A6B /* Aptabase in Frameworks */ = {isa = PBXBuildFile; productRef = CF748F832F14800300799E78 /* Aptabase */; };
 		CF748F6F2F14688800799E78 /* RealIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = CF748F6D2F14688800799E78 /* RealIcon.icon */; };
 /* End PBXBuildFile section */
 
@@ -28,6 +30,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CF6A13122F4DD8B900018A6B /* Aptabase in Frameworks */,
+				CF6A13112F4DD8B900018A6B /* AppUpdater in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

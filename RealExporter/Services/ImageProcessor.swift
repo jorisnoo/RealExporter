@@ -35,6 +35,7 @@ enum ImageProcessor {
         frontPath: URL,
         outputPath: URL,
         style: ImageStyle,
+        overlayPosition: OverlayPosition,
         metadata: ExportMetadata
     ) throws {
         switch style {
@@ -43,6 +44,7 @@ enum ImageProcessor {
                 backPath: backPath,
                 frontPath: frontPath,
                 outputPath: outputPath,
+                overlayPosition: overlayPosition,
                 metadata: metadata
             )
         case .separate:
@@ -63,6 +65,7 @@ enum ImageProcessor {
                 backPath: backPath,
                 frontPath: frontPath,
                 outputPath: outputPath,
+                overlayPosition: overlayPosition,
                 metadata: metadata
             )
         }
@@ -72,6 +75,7 @@ enum ImageProcessor {
         backPath: URL,
         frontPath: URL,
         outputPath: URL,
+        overlayPosition: OverlayPosition,
         metadata: ExportMetadata
     ) throws {
         guard let backImage = loadImage(from: backPath) else {
@@ -87,10 +91,10 @@ enum ImageProcessor {
         let backOutputPath = directory.appendingPathComponent("\(baseName)_combined_back.jpg")
         let frontOutputPath = directory.appendingPathComponent("\(baseName)_combined_front.jpg")
 
-        let backAsBg = try stitchImages(back: backImage, front: frontImage)
+        let backAsBg = try stitchImages(back: backImage, front: frontImage, overlayPosition: overlayPosition)
         try saveAsJPEG(image: backAsBg, to: backOutputPath, metadata: metadata)
 
-        let frontAsBg = try stitchImages(back: frontImage, front: backImage)
+        let frontAsBg = try stitchImages(back: frontImage, front: backImage, overlayPosition: overlayPosition)
         try saveAsJPEG(image: frontAsBg, to: frontOutputPath, metadata: metadata)
     }
 
@@ -124,7 +128,7 @@ enum ImageProcessor {
         return CGImageSourceCreateImageAtIndex(imageSource, 0, nil)
     }
 
-    private static func stitchImages(back: CGImage, front: CGImage) throws -> CGImage {
+    private static func stitchImages(back: CGImage, front: CGImage, overlayPosition: OverlayPosition) throws -> CGImage {
         let width = back.width
         let height = back.height
 
@@ -153,8 +157,23 @@ enum ImageProcessor {
 
         context.draw(back, in: CGRect(x: 0, y: 0, width: width, height: height))
 
-        let overlayX = CGFloat(padding)
-        let overlayY = CGFloat(height - overlayHeight - padding)
+        // CG uses bottom-left origin, so top = high Y, bottom = low Y
+        let overlayX: CGFloat
+        let overlayY: CGFloat
+        switch overlayPosition {
+        case .topLeft:
+            overlayX = CGFloat(padding)
+            overlayY = CGFloat(height - overlayHeight - padding)
+        case .topRight:
+            overlayX = CGFloat(width - overlayWidth - padding)
+            overlayY = CGFloat(height - overlayHeight - padding)
+        case .bottomLeft:
+            overlayX = CGFloat(padding)
+            overlayY = CGFloat(padding)
+        case .bottomRight:
+            overlayX = CGFloat(width - overlayWidth - padding)
+            overlayY = CGFloat(padding)
+        }
         let overlayRect = CGRect(
             x: overlayX,
             y: overlayY,

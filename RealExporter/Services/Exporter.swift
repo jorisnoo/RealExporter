@@ -96,6 +96,7 @@ enum Exporter {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd_HHmmss"
         let imageStyle = options.imageStyle
+        let overlayPosition = options.overlayPosition
         let folderStructure = options.folderStructure
 
         var currentIndex = 0
@@ -127,6 +128,7 @@ enum Exporter {
                     frontPath: frontPath,
                     outputPath: outputPath,
                     style: imageStyle,
+                    overlayPosition: overlayPosition,
                     metadata: metadata
                 )
             }.value

@@ -51,10 +51,14 @@ struct ExportOptionsView: View {
                 Spacer()
 
                 Button("Start Export") {
-                    onExport()
+                    if options.destinationURL == nil {
+                        selectDestination()
+                    }
+                    if options.destinationURL != nil {
+                        onExport()
+                    }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!options.isValid)
             }
             .padding(20)
         }
@@ -62,6 +66,10 @@ struct ExportOptionsView: View {
         .onAppear {
             loadLastDestination()
         }
+    }
+
+    private var showOverlayPicker: Bool {
+        options.imageStyle == .combined || options.imageStyle == .both
     }
 
     private var imageStyleSection: some View {
@@ -79,7 +87,17 @@ struct ExportOptionsView: View {
             Text(options.imageStyle.description)
                 .font(.caption)
                 .foregroundColor(.secondary)
+
+            if showOverlayPicker {
+                Picker("Overlay Position", selection: $options.overlayPosition) {
+                    ForEach(OverlayPosition.allCases) { position in
+                        Text(position.rawValue).tag(position)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
         }
+        .animation(.default, value: options.imageStyle)
     }
 
     private var folderStructureSection: some View {

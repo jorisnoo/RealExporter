@@ -1,0 +1,33 @@
+{
+  "originHash" : "79934d483081ddbd23abdd23265b9c9d87c88837f12e9e3fdc75da2d995f845e",
+  "pins" : [
+    {
+      "identity" : "appupdater",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jorisnoo/AppUpdater.git",
+      "state" : {
+        "revision" : "2bb85cd74b7a30914b6c0f1a6c2d55947969e975",
+        "version" : "3.0.0"
+      }
+    },
+    {
+      "identity" : "aptabase-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jorisnoo/aptabase-swift",
+      "state" : {
+        "branch" : "main",
+        "revision" : "18820acaf29d008f9be358230109a64d6aa3c342"
+      }
+    },
+    {
+      "identity" : "version",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mxcl/Version.git",
+      "state" : {
+        "revision" : "67ce582bb9de70e1eb2ee41fd71aad3b5f86d97b",
+        "version" : "2.2.0"
+      }
+    }
+  ],
+  "version" : 3
+}
