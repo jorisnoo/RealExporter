@@ -113,10 +113,17 @@ enum ImageProcessor {
             let backOutputPath = directory.appendingPathComponent("\(baseName)_combined_back.jpg")
             let frontOutputPath = directory.appendingPathComponent("\(baseName)_combined_front.jpg")
 
-            let backAsBg = try stitchImages(back: backImage, front: frontImage, overlayPosition: overlayPosition)
+            let backPosition = overlayPosition == .auto
+                ? resolveAutoPosition(background: backImage, overlay: frontImage)
+                : overlayPosition
+            let frontPosition = overlayPosition == .auto
+                ? resolveAutoPosition(background: frontImage, overlay: backImage)
+                : overlayPosition
+
+            let backAsBg = try stitchImages(back: backImage, front: frontImage, overlayPosition: backPosition)
             try saveAsJPEG(image: backAsBg, to: backOutputPath, metadata: metadata)
 
-            let frontAsBg = try stitchImages(back: frontImage, front: backImage, overlayPosition: overlayPosition)
+            let frontAsBg = try stitchImages(back: frontImage, front: backImage, overlayPosition: frontPosition)
             try saveAsJPEG(image: frontAsBg, to: frontOutputPath, metadata: metadata)
         }
     }
@@ -242,24 +249,28 @@ enum ImageProcessor {
         return sum / Float(count)
     }
 
-    private static func saliencyScores(
-        for image: CGImage,
-        overlayWidth: Int, overlayHeight: Int,
-        padding: Int
-    ) -> [OverlayPosition: Float]? {
-        let request = VNGenerateAttentionBasedSaliencyImageRequest()
+    private static func runVisionAnalysis(for image: CGImage) -> (saliency: VNSaliencyImageObservation?, faces: [VNFaceObservation]) {
+        let saliencyRequest = VNGenerateAttentionBasedSaliencyImageRequest()
+        let faceRequest = VNDetectFaceRectanglesRequest()
         let handler = VNImageRequestHandler(cgImage: image)
 
         do {
-            try handler.perform([request])
+            try handler.perform([saliencyRequest, faceRequest])
         } catch {
-            return nil
+            return (nil, [])
         }
 
-        guard let observation = request.results?.first else {
-            return nil
-        }
+        let saliency = saliencyRequest.results?.first
+        let faces = faceRequest.results ?? []
+        return (saliency, faces)
+    }
 
+    private static func saliencyScoresFromObservation(
+        _ observation: VNSaliencyImageObservation,
+        image: CGImage,
+        overlayWidth: Int, overlayHeight: Int,
+        padding: Int
+    ) -> [OverlayPosition: Float]? {
         let pixelBuffer = observation.pixelBuffer
 
         CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
@@ -303,39 +314,41 @@ enum ImageProcessor {
         return scores
     }
 
-    private static func faceCornerScores(for image: CGImage) -> [OverlayPosition: Float] {
+    private static func faceOverlapScores(
+        faces: [VNFaceObservation],
+        overlayWidth: Int,
+        overlayHeight: Int,
+        imageWidth: Int,
+        imageHeight: Int,
+        padding: Int
+    ) -> [OverlayPosition: Float] {
         var scores: [OverlayPosition: Float] = [
             .topLeft: 0, .topRight: 0, .bottomLeft: 0, .bottomRight: 0,
         ]
 
-        let request = VNDetectFaceRectanglesRequest()
-        let handler = VNImageRequestHandler(cgImage: image)
+        guard !faces.isEmpty else { return scores }
 
-        do {
-            try handler.perform([request])
-        } catch {
-            return scores
-        }
+        let ow = Double(overlayWidth) / Double(imageWidth)
+        let oh = Double(overlayHeight) / Double(imageHeight)
+        let padX = Double(padding) / Double(imageWidth)
+        let padY = Double(padding) / Double(imageHeight)
 
-        guard let results = request.results, !results.isEmpty else {
-            return scores
-        }
+        // Overlay rects in normalized coords (bottom-left origin, matching Vision)
+        let cornerRects: [(OverlayPosition, CGRect)] = [
+            (.topLeft,     CGRect(x: padX, y: 1 - oh - padY, width: ow, height: oh)),
+            (.topRight,    CGRect(x: 1 - ow - padX, y: 1 - oh - padY, width: ow, height: oh)),
+            (.bottomLeft,  CGRect(x: padX, y: padY, width: ow, height: oh)),
+            (.bottomRight, CGRect(x: 1 - ow - padX, y: padY, width: ow, height: oh)),
+        ]
 
-        for face in results {
-            let box = face.boundingBox // normalised, bottom-left origin
-            let centerX = box.midX
-            let centerY = box.midY
-            let area = Float(box.width * box.height) // larger face → stronger penalty
-
-            // Map face center to the corner it falls in
-            let position: OverlayPosition
-            if centerX < 0.5 {
-                position = centerY >= 0.5 ? .topLeft : .bottomLeft
-            } else {
-                position = centerY >= 0.5 ? .topRight : .bottomRight
+        for face in faces {
+            let faceRect = face.boundingBox
+            for (pos, overlayRect) in cornerRects {
+                let intersection = overlayRect.intersection(faceRect)
+                if !intersection.isNull {
+                    scores[pos, default: 0] += Float(intersection.width * intersection.height)
+                }
             }
-
-            scores[position, default: 0] += area
         }
 
         return scores
@@ -347,13 +360,22 @@ enum ImageProcessor {
         overlayHeight: Int,
         padding: Int
     ) -> OverlayPosition {
-        let faceScores = faceCornerScores(for: image)
+        let analysis = runVisionAnalysis(for: image)
+        let faceScores = faceOverlapScores(
+            faces: analysis.faces,
+            overlayWidth: overlayWidth,
+            overlayHeight: overlayHeight,
+            imageWidth: image.width,
+            imageHeight: image.height,
+            padding: padding
+        )
         // Weight high enough that a face almost always pushes overlay away,
         // but saliency still resolves ties between face-free corners.
         let faceWeight: Float = 10.0
 
         // Prefer Vision saliency — pick the corner humans look at least
-        if let saliency = saliencyScores(for: image, overlayWidth: overlayWidth, overlayHeight: overlayHeight, padding: padding) {
+        if let saliencyObs = analysis.saliency,
+           let saliency = saliencyScoresFromObservation(saliencyObs, image: image, overlayWidth: overlayWidth, overlayHeight: overlayHeight, padding: padding) {
             var combined: [OverlayPosition: Float] = [:]
             for pos in [OverlayPosition.topLeft, .topRight, .bottomLeft, .bottomRight] {
                 combined[pos] = (saliency[pos] ?? 0) + (faceScores[pos] ?? 0) * faceWeight
@@ -400,6 +422,13 @@ enum ImageProcessor {
         return bestPos
     }
 
+    private static func resolveAutoPosition(background: CGImage, overlay: CGImage) -> OverlayPosition {
+        let overlayWidth = background.width / 3
+        let overlayHeight = Int(Double(overlayWidth) * (Double(overlay.height) / Double(overlay.width)))
+        let padding = background.width / 30
+        return bestCorner(for: background, overlayWidth: overlayWidth, overlayHeight: overlayHeight, padding: padding)
+    }
+
     private static func stitchImages(back: CGImage, front: CGImage, overlayPosition: OverlayPosition) throws -> CGImage {
         let width = back.width
         let height = back.height
@@ -414,12 +443,6 @@ enum ImageProcessor {
         let padding = width / 30
         let cornerRadius = overlayWidth / 12
         let borderWidth = max(2, width / 200)
-
-        let resolvedPosition: OverlayPosition = if overlayPosition == .auto {
-            bestCorner(for: back, overlayWidth: overlayWidth, overlayHeight: overlayHeight, padding: padding)
-        } else {
-            overlayPosition
-        }
 
         guard let context = CGContext(
             data: nil,
@@ -438,12 +461,8 @@ enum ImageProcessor {
         // CG uses bottom-left origin, so top = high Y, bottom = low Y
         let overlayX: CGFloat
         let overlayY: CGFloat
-        switch resolvedPosition {
-        case .auto:
-            // Already resolved above; fallback to topLeft
-            overlayX = CGFloat(padding)
-            overlayY = CGFloat(height - overlayHeight - padding)
-        case .topLeft:
+        switch overlayPosition {
+        case .topLeft, .auto, .all:
             overlayX = CGFloat(padding)
             overlayY = CGFloat(height - overlayHeight - padding)
         case .topRight:
@@ -455,9 +474,6 @@ enum ImageProcessor {
         case .bottomRight:
             overlayX = CGFloat(width - overlayWidth - padding)
             overlayY = CGFloat(padding)
-        case .all:
-            overlayX = CGFloat(padding)
-            overlayY = CGFloat(height - overlayHeight - padding)
         }
         let overlayRect = CGRect(
             x: overlayX,

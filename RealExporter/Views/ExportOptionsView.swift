@@ -143,6 +143,16 @@ struct ExportOptionsView: View {
         }
 
         if panel.runModal() == .OK, let url = panel.url {
+            let contents = (try? FileManager.default.contentsOfDirectory(atPath: url.path)) ?? []
+            if !contents.isEmpty {
+                let alert = NSAlert()
+                alert.messageText = "Folder Not Empty"
+                alert.informativeText = "The selected folder is not empty. Please choose an empty folder."
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+                return
+            }
             options.destinationURL = url
             UserDefaults.standard.set(url, forKey: Self.lastExportFolderKey)
         }
