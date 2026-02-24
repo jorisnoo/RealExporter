@@ -62,26 +62,13 @@ struct SourceSelectionView: View {
         .onTapGesture {
             openFilePicker()
         }
-        .onDrop(of: [.fileURL], isTargeted: $isDragging) { providers in
-            handleDrop(providers: providers)
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            selectedURL = url
+            return true
+        } isTargeted: { targeted in
+            isDragging = targeted
         }
-    }
-
-    private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-
-        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-            guard let data = item as? Data,
-                  let url = URL(dataRepresentation: data, relativeTo: nil) else {
-                return
-            }
-
-            DispatchQueue.main.async {
-                self.selectedURL = url
-            }
-        }
-
-        return true
     }
 
     private func openFilePicker() {

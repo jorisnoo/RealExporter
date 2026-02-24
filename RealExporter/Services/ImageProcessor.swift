@@ -29,12 +29,8 @@ struct ExportMetadata {
     let caption: String?
 }
 
-class ImageProcessor {
-    static let shared = ImageProcessor()
-
-    private init() {}
-
-    func processAndSave(
+enum ImageProcessor {
+    static func processAndSave(
         backPath: URL,
         frontPath: URL,
         outputPath: URL,
@@ -72,7 +68,7 @@ class ImageProcessor {
         }
     }
 
-    private func saveCombinedImage(
+    private static func saveCombinedImage(
         backPath: URL,
         frontPath: URL,
         outputPath: URL,
@@ -98,7 +94,7 @@ class ImageProcessor {
         try saveAsJPEG(image: frontAsBg, to: frontOutputPath, metadata: metadata)
     }
 
-    private func saveSeparateImages(
+    private static func saveSeparateImages(
         backPath: URL,
         frontPath: URL,
         outputPath: URL,
@@ -121,16 +117,20 @@ class ImageProcessor {
         try saveAsJPEG(image: frontImage, to: frontOutputPath, metadata: metadata)
     }
 
-    private func loadImage(from url: URL) -> CGImage? {
+    private static func loadImage(from url: URL) -> CGImage? {
         guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             return nil
         }
         return CGImageSourceCreateImageAtIndex(imageSource, 0, nil)
     }
 
-    private func stitchImages(back: CGImage, front: CGImage) throws -> CGImage {
+    private static func stitchImages(back: CGImage, front: CGImage) throws -> CGImage {
         let width = back.width
         let height = back.height
+
+        guard front.width > 0 else {
+            throw ImageProcessorError.failedToLoadImage("Front image has zero width")
+        }
 
         let overlayWidth = width / 3
         let overlayHeight = Int(Double(overlayWidth) * (Double(front.height) / Double(front.width)))
@@ -192,7 +192,7 @@ class ImageProcessor {
         return result
     }
 
-    private func saveAsJPEG(image: CGImage, to url: URL, metadata: ExportMetadata) throws {
+    private static func saveAsJPEG(image: CGImage, to url: URL, metadata: ExportMetadata) throws {
         guard let destination = CGImageDestinationCreateWithURL(
             url as CFURL,
             UTType.jpeg.identifier as CFString,
@@ -211,7 +211,7 @@ class ImageProcessor {
         }
     }
 
-    private func buildExifProperties(metadata: ExportMetadata) -> [String: Any] {
+    private static func buildExifProperties(metadata: ExportMetadata) -> [String: Any] {
         var properties: [String: Any] = [:]
 
         properties[kCGImageDestinationLossyCompressionQuality as String] = 0.9

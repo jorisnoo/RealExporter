@@ -28,16 +28,8 @@ enum ExporterError: LocalizedError {
     }
 }
 
-@MainActor
-class Exporter {
-    private let fileManager = FileManager.default
-    private var isCancelled = false
-
-    func cancel() {
-        isCancelled = true
-    }
-
-    func export(
+enum Exporter {
+    static func export(
         data: BeRealExport,
         options: ExportOptions,
         progressHandler: @escaping @MainActor (ExportProgress) -> Void
@@ -46,7 +38,7 @@ class Exporter {
             throw ExporterError.noDestination
         }
 
-        isCancelled = false
+        let fileManager = FileManager.default
 
         var mergedItems: [String: (date: Date, backPath: URL, frontPath: URL, location: Location?, caption: String?)] = [:]
 
@@ -110,11 +102,8 @@ class Exporter {
         var commentsByFolder: [URL: [(filename: String, comments: [String])]] = [:]
 
         for (postId, item) in itemsToExport {
+            try Task.checkCancellation()
             await Task.yield()
-
-            if isCancelled {
-                throw ExporterError.cancelled
-            }
 
             let outputPath = try buildOutputPath(
                 for: item.date,
@@ -133,7 +122,7 @@ class Exporter {
             let frontPath = item.frontPath
 
             try await Task.detached {
-                try await ImageProcessor.shared.processAndSave(
+                try ImageProcessor.processAndSave(
                     backPath: backPath,
                     frontPath: frontPath,
                     outputPath: outputPath,
@@ -142,8 +131,8 @@ class Exporter {
                 )
             }.value
 
-            let postIdWithoutExt = (postId as NSString).lastPathComponent.replacingOccurrences(of: ".webp", with: "")
-            if let postComments = commentsByPostId[postIdWithoutExt], !postComments.isEmpty {
+            let postIdFilename = URL(fileURLWithPath: postId).lastPathComponent.replacingOccurrences(of: ".webp", with: "")
+            if let postComments = commentsByPostId[postIdFilename], !postComments.isEmpty {
                 let folder = outputPath.deletingLastPathComponent()
                 let filename = "bereal_\(dateFormatter.string(from: item.date))"
                 commentsByFolder[folder, default: []].append((filename: filename, comments: postComments))
@@ -155,7 +144,7 @@ class Exporter {
                 total: total,
                 currentItem: outputPath.lastPathComponent
             )
-            progressHandler(progress)
+            await progressHandler(progress)
         }
 
         if !conversationImages.isEmpty {
@@ -165,11 +154,8 @@ class Exporter {
             }
 
             for image in conversationImages {
+                try Task.checkCancellation()
                 await Task.yield()
-
-                if isCancelled {
-                    throw ExporterError.cancelled
-                }
 
                 let ext = image.url.pathExtension
                 let outputFilename: String
@@ -191,7 +177,7 @@ class Exporter {
                     total: total,
                     currentItem: "Conversations/\(outputFilename)"
                 )
-                progressHandler(progress)
+                await progressHandler(progress)
             }
         }
 
@@ -212,12 +198,13 @@ class Exporter {
         }
     }
 
-    private func buildOutputPath(
+    private static func buildOutputPath(
         for date: Date,
         folderStructure: FolderStructure,
         destinationURL: URL,
         dateFormatter: DateFormatter
     ) throws -> URL {
+        let fileManager = FileManager.default
         let filename = "bereal_\(dateFormatter.string(from: date)).jpg"
 
         let outputDirectory: URL

@@ -34,15 +34,3 @@ struct BeRealExport {
         return minDate...maxDate
     }
 }
-
-struct ValidationResult {
-    let isValid: Bool
-    let errors: [String]
-    let warnings: [String]
-
-    static let valid = ValidationResult(isValid: true, errors: [], warnings: [])
-
-    static func invalid(_ errors: [String]) -> ValidationResult {
-        ValidationResult(isValid: false, errors: errors, warnings: [])
-    }
-}

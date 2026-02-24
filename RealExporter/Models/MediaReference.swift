@@ -13,7 +13,7 @@ struct MediaReference: Codable {
     }
 
     var filename: String {
-        (path as NSString).lastPathComponent
+        URL(fileURLWithPath: path).lastPathComponent
     }
 
     func localPath(relativeTo baseURL: URL) -> URL {

@@ -5,11 +5,11 @@ struct DataSummaryView: View {
     let onContinue: () -> Void
     let onBack: () -> Void
 
-    private var dateFormatter: DateFormatter {
+    private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter
-    }
+    }()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -126,7 +126,7 @@ struct DataSummaryView: View {
             Text("Date range:")
                 .foregroundColor(.secondary)
 
-            Text("\(dateFormatter.string(from: range.lowerBound)) - \(dateFormatter.string(from: range.upperBound))")
+            Text("\(Self.dateFormatter.string(from: range.lowerBound)) - \(Self.dateFormatter.string(from: range.upperBound))")
                 .fontWeight(.medium)
         }
     }

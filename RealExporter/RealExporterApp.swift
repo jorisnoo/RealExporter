@@ -13,5 +13,7 @@ struct RealExporterApp: App {
         WindowGroup {
             ContentView()
         }
+        .defaultSize(width: 500, height: 500)
+        .windowResizability(.contentSize)
     }
 }

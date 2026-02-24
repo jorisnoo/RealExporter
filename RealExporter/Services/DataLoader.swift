@@ -30,14 +30,10 @@ enum DataLoaderError: LocalizedError {
     }
 }
 
-class DataLoader {
-    static let shared = DataLoader()
+enum DataLoader {
+    private static let fileManager = FileManager.default
 
-    private let fileManager = FileManager.default
-
-    private init() {}
-
-    func loadFromURL(_ url: URL) async throws -> BeRealExport {
+    static func loadFromURL(_ url: URL) async throws -> BeRealExport {
         let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
 
         if isDirectory {
@@ -49,14 +45,15 @@ class DataLoader {
         }
     }
 
-    func loadFromFolder(_ folderURL: URL) async throws -> BeRealExport {
+    static func loadFromFolder(_ folderURL: URL) async throws -> BeRealExport {
         let dataFolderURL = try findDataFolder(in: folderURL)
         return try await parseDataFolder(dataFolderURL)
     }
 
-    func loadFromZip(_ zipURL: URL) async throws -> BeRealExport {
+    static func loadFromZip(_ zipURL: URL) async throws -> BeRealExport {
         let tempDirectory = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try fileManager.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: tempDirectory) }
 
         try await extractZip(zipURL, to: tempDirectory)
 
@@ -64,7 +61,7 @@ class DataLoader {
         return try await parseDataFolder(dataFolderURL)
     }
 
-    private func findDataFolder(in directory: URL) throws -> URL {
+    private static func findDataFolder(in directory: URL) throws -> URL {
         let contents = try fileManager.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: [.isDirectoryKey],
@@ -93,7 +90,7 @@ class DataLoader {
         throw DataLoaderError.noDataFolderFound
     }
 
-    private func parseDataFolder(_ folderURL: URL) async throws -> BeRealExport {
+    private static func parseDataFolder(_ folderURL: URL) async throws -> BeRealExport {
         let userURL = folderURL.appendingPathComponent("user.json")
         let postsURL = folderURL.appendingPathComponent("posts.json")
         let memoriesURL = folderURL.appendingPathComponent("memories.json")
@@ -152,7 +149,7 @@ class DataLoader {
         )
     }
 
-    private func loadComments(from folderURL: URL, decoder: JSONDecoder) -> [Comment] {
+    private static func loadComments(from folderURL: URL, decoder: JSONDecoder) -> [Comment] {
         let commentsURL = folderURL.appendingPathComponent("comments.json")
 
         guard fileManager.fileExists(atPath: commentsURL.path),
@@ -164,7 +161,7 @@ class DataLoader {
         return comments
     }
 
-    private func loadConversationImages(from folderURL: URL) -> [ConversationImage] {
+    private static func loadConversationImages(from folderURL: URL) -> [ConversationImage] {
         let conversationsURL = folderURL.appendingPathComponent("conversations")
 
         guard fileManager.fileExists(atPath: conversationsURL.path) else {
@@ -231,27 +228,25 @@ class DataLoader {
         return images
     }
 
-    private func extractZip(_ zipURL: URL, to destination: URL) async throws {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-        process.arguments = ["-q", zipURL.path, "-d", destination.path]
+    private static func extractZip(_ zipURL: URL, to destination: URL) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+            process.arguments = ["-q", zipURL.path, "-d", destination.path]
 
-        try process.run()
-        process.waitUntilExit()
+            process.terminationHandler = { process in
+                if process.terminationStatus == 0 {
+                    continuation.resume()
+                } else {
+                    continuation.resume(throwing: DataLoaderError.parsingError("Failed to extract ZIP file"))
+                }
+            }
 
-        if process.terminationStatus != 0 {
-            throw DataLoaderError.parsingError("Failed to extract ZIP file")
-        }
-    }
-
-    func validate(_ url: URL) async -> ValidationResult {
-        do {
-            _ = try await loadFromURL(url)
-            return .valid
-        } catch let error as DataLoaderError {
-            return .invalid([error.localizedDescription])
-        } catch {
-            return .invalid([error.localizedDescription])
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(throwing: error)
+            }
         }
     }
 }
