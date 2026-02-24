@@ -7,6 +7,7 @@ struct BeRealExport {
     let conversationImages: [ConversationImage]
     let comments: [Comment]
     let baseURL: URL
+    let temporaryDirectory: URL?
 
     var uniqueBeRealCount: Int {
         var uniquePaths = Set<String>()

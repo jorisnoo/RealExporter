@@ -75,6 +75,9 @@ final class AppViewModel {
         exportTask?.cancel()
         exportTask = nil
         selectedURL = nil
+        if let tempDir = loadedData?.temporaryDirectory {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
         loadedData = nil
         exportOptions = ExportOptions()
         exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")

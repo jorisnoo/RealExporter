@@ -2,6 +2,7 @@ import Foundation
 import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
+import Vision
 
 enum ImageProcessorError: LocalizedError {
     case failedToLoadImage(String)
@@ -121,6 +122,18 @@ enum ImageProcessor {
         try saveAsJPEG(image: frontImage, to: frontOutputPath, metadata: metadata)
     }
 
+    static func convertToJPEG(source: URL, destination: URL, date: Date?) throws {
+        guard let image = loadImage(from: source) else {
+            throw ImageProcessorError.failedToLoadImage(source.path)
+        }
+        let metadata = ExportMetadata(
+            date: date ?? Date(),
+            location: nil,
+            caption: nil
+        )
+        try saveAsJPEG(image: image, to: destination, metadata: metadata)
+    }
+
     private static func loadImage(from url: URL) -> CGImage? {
         guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             return nil
@@ -178,12 +191,110 @@ enum ImageProcessor {
         return meanSq - mean * mean
     }
 
+    private static func averageSaliency(
+        buffer: UnsafePointer<Float32>,
+        mapWidth: Int,
+        mapHeight: Int,
+        bytesPerRow: Int,
+        regionX: Int, regionY: Int,
+        regionWidth: Int, regionHeight: Int
+    ) -> Float {
+        let stride = bytesPerRow / MemoryLayout<Float32>.size
+        let x0 = max(regionX, 0)
+        let y0 = max(regionY, 0)
+        let maxX = min(regionX + regionWidth, mapWidth)
+        let maxY = min(regionY + regionHeight, mapHeight)
+
+        var sum: Float = 0
+        var count = 0
+
+        for y in y0..<maxY {
+            let rowOffset = y * stride
+            for x in x0..<maxX {
+                sum += buffer[rowOffset + x]
+                count += 1
+            }
+        }
+
+        guard count > 0 else { return 0 }
+        return sum / Float(count)
+    }
+
+    private static func saliencyScores(
+        for image: CGImage,
+        overlayWidth: Int, overlayHeight: Int,
+        padding: Int
+    ) -> [OverlayPosition: Float]? {
+        let request = VNGenerateAttentionBasedSaliencyImageRequest()
+        let handler = VNImageRequestHandler(cgImage: image)
+
+        do {
+            try handler.perform([request])
+        } catch {
+            return nil
+        }
+
+        guard let observation = request.results?.first else {
+            return nil
+        }
+
+        let pixelBuffer = observation.pixelBuffer
+
+        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+
+        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+            return nil
+        }
+
+        let mapWidth = CVPixelBufferGetWidth(pixelBuffer)
+        let mapHeight = CVPixelBufferGetHeight(pixelBuffer)
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        let buffer = baseAddress.assumingMemoryBound(to: Float32.self)
+
+        let scaleX = Double(mapWidth) / Double(image.width)
+        let scaleY = Double(mapHeight) / Double(image.height)
+
+        let ow = Int(Double(overlayWidth) * scaleX)
+        let oh = Int(Double(overlayHeight) * scaleY)
+        let pad = Int(Double(padding) * scaleX)
+
+        // Both CG and Vision use bottom-left origin
+        let corners: [(OverlayPosition, Int, Int)] = [
+            (.topLeft,     pad,                  mapHeight - oh - pad),
+            (.topRight,    mapWidth - ow - pad,  mapHeight - oh - pad),
+            (.bottomLeft,  pad,                  pad),
+            (.bottomRight, mapWidth - ow - pad,  pad),
+        ]
+
+        var scores: [OverlayPosition: Float] = [:]
+        for (pos, rx, ry) in corners {
+            scores[pos] = averageSaliency(
+                buffer: buffer,
+                mapWidth: mapWidth, mapHeight: mapHeight,
+                bytesPerRow: bytesPerRow,
+                regionX: rx, regionY: ry,
+                regionWidth: ow, regionHeight: oh
+            )
+        }
+
+        return scores
+    }
+
     private static func bestCorner(
         for image: CGImage,
         overlayWidth: Int,
         overlayHeight: Int,
         padding: Int
     ) -> OverlayPosition {
+        // Prefer Vision saliency — pick the corner humans look at least
+        if let scores = saliencyScores(for: image, overlayWidth: overlayWidth, overlayHeight: overlayHeight, padding: padding) {
+            if let best = scores.min(by: { $0.value < $1.value }) {
+                return best.key
+            }
+        }
+
+        // Fallback: luminance variance (flattest corner)
         let targetWidth = 400
         let scale = Double(targetWidth) / Double(image.width)
         let targetHeight = Int(Double(image.height) * scale)

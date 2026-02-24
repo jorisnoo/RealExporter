@@ -159,18 +159,22 @@ enum Exporter {
                 try Task.checkCancellation()
                 await Task.yield()
 
-                let ext = image.url.pathExtension
                 let outputFilename: String
                 if let date = image.date {
-                    outputFilename = "chat_\(dateFormatter.string(from: date))_\(image.id.suffix(8)).\(ext)"
+                    outputFilename = "chat_\(dateFormatter.string(from: date))_\(image.id.suffix(8)).jpg"
                 } else {
-                    outputFilename = image.filename
+                    let name = (image.filename as NSString).deletingPathExtension
+                    outputFilename = "\(name).jpg"
                 }
 
                 let outputPath = conversationsFolder.appendingPathComponent(outputFilename)
+                let sourceURL = image.url
+                let imageDate = image.date
 
                 if !fileManager.fileExists(atPath: outputPath.path) {
-                    try fileManager.copyItem(at: image.url, to: outputPath)
+                    try await Task.detached {
+                        try ImageProcessor.convertToJPEG(source: sourceURL, destination: outputPath, date: imageDate)
+                    }.value
                 }
 
                 currentIndex += 1

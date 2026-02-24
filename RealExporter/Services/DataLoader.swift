@@ -47,18 +47,17 @@ enum DataLoader {
 
     static func loadFromFolder(_ folderURL: URL) async throws -> BeRealExport {
         let dataFolderURL = try findDataFolder(in: folderURL)
-        return try await parseDataFolder(dataFolderURL)
+        return try await parseDataFolder(dataFolderURL, temporaryDirectory: nil)
     }
 
     static func loadFromZip(_ zipURL: URL) async throws -> BeRealExport {
         let tempDirectory = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try fileManager.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
-        defer { try? fileManager.removeItem(at: tempDirectory) }
 
         try await extractZip(zipURL, to: tempDirectory)
 
         let dataFolderURL = try findDataFolder(in: tempDirectory)
-        return try await parseDataFolder(dataFolderURL)
+        return try await parseDataFolder(dataFolderURL, temporaryDirectory: tempDirectory)
     }
 
     private static func findDataFolder(in directory: URL) throws -> URL {
@@ -90,7 +89,7 @@ enum DataLoader {
         throw DataLoaderError.noDataFolderFound
     }
 
-    private static func parseDataFolder(_ folderURL: URL) async throws -> BeRealExport {
+    private static func parseDataFolder(_ folderURL: URL, temporaryDirectory: URL?) async throws -> BeRealExport {
         let userURL = folderURL.appendingPathComponent("user.json")
         let postsURL = folderURL.appendingPathComponent("posts.json")
         let memoriesURL = folderURL.appendingPathComponent("memories.json")
@@ -145,7 +144,8 @@ enum DataLoader {
             memories: memories,
             conversationImages: conversationImages,
             comments: comments,
-            baseURL: folderURL
+            baseURL: folderURL,
+            temporaryDirectory: temporaryDirectory
         )
     }
 

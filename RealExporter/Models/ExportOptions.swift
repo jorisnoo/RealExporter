@@ -46,7 +46,7 @@ enum OverlayPosition: String, CaseIterable, Identifiable {
 }
 
 struct ExportOptions {
-    var imageStyle: ImageStyle = .separate
+    var imageStyle: ImageStyle = .both
     var overlayPosition: OverlayPosition = .auto
     var folderStructure: FolderStructure = .byDate
     var includeConversations: Bool = true
