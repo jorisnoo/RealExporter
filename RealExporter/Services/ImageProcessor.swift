@@ -128,6 +128,96 @@ enum ImageProcessor {
         return CGImageSourceCreateImageAtIndex(imageSource, 0, nil)
     }
 
+    private static func extractLuminance(from image: CGImage, width targetWidth: Int, height targetHeight: Int) -> [UInt8]? {
+        var buffer = [UInt8](repeating: 0, count: targetWidth * targetHeight)
+        guard let context = CGContext(
+            data: &buffer,
+            width: targetWidth,
+            height: targetHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: targetWidth,
+            space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else {
+            return nil
+        }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+        return buffer
+    }
+
+    private static func regionVariance(
+        data: [UInt8],
+        imageWidth: Int,
+        regionX: Int,
+        regionY: Int,
+        regionWidth: Int,
+        regionHeight: Int
+    ) -> Double {
+        let maxX = min(regionX + regionWidth, imageWidth)
+        let maxY = min(regionY + regionHeight, data.count / imageWidth)
+        let x0 = max(regionX, 0)
+        let y0 = max(regionY, 0)
+
+        var sum = 0
+        var sumSq = 0
+        var count = 0
+
+        for y in y0..<maxY {
+            let rowOffset = y * imageWidth
+            for x in x0..<maxX {
+                let v = Int(data[rowOffset + x])
+                sum += v
+                sumSq += v * v
+                count += 1
+            }
+        }
+
+        guard count > 0 else { return 0 }
+        let mean = Double(sum) / Double(count)
+        let meanSq = Double(sumSq) / Double(count)
+        return meanSq - mean * mean
+    }
+
+    private static func bestCorner(
+        for image: CGImage,
+        overlayWidth: Int,
+        overlayHeight: Int,
+        padding: Int
+    ) -> OverlayPosition {
+        let targetWidth = 400
+        let scale = Double(targetWidth) / Double(image.width)
+        let targetHeight = Int(Double(image.height) * scale)
+
+        guard let lum = extractLuminance(from: image, width: targetWidth, height: targetHeight) else {
+            return .topLeft
+        }
+
+        let ow = Int(Double(overlayWidth) * scale)
+        let oh = Int(Double(overlayHeight) * scale)
+        let pad = Int(Double(padding) * scale)
+
+        // CG bottom-left origin: top = high Y, bottom = low Y
+        let corners: [(OverlayPosition, Int, Int)] = [
+            (.topLeft,     pad,                        targetHeight - oh - pad),
+            (.topRight,    targetWidth - ow - pad,     targetHeight - oh - pad),
+            (.bottomLeft,  pad,                        pad),
+            (.bottomRight, targetWidth - ow - pad,     pad),
+        ]
+
+        var bestPos: OverlayPosition = .topLeft
+        var bestVariance = Double.infinity
+
+        for (pos, rx, ry) in corners {
+            let v = regionVariance(data: lum, imageWidth: targetWidth, regionX: rx, regionY: ry, regionWidth: ow, regionHeight: oh)
+            if v < bestVariance {
+                bestVariance = v
+                bestPos = pos
+            }
+        }
+
+        return bestPos
+    }
+
     private static func stitchImages(back: CGImage, front: CGImage, overlayPosition: OverlayPosition) throws -> CGImage {
         let width = back.width
         let height = back.height
@@ -142,6 +232,12 @@ enum ImageProcessor {
         let padding = width / 30
         let cornerRadius = overlayWidth / 12
         let borderWidth = max(2, width / 200)
+
+        let resolvedPosition: OverlayPosition = if overlayPosition == .auto {
+            bestCorner(for: back, overlayWidth: overlayWidth, overlayHeight: overlayHeight, padding: padding)
+        } else {
+            overlayPosition
+        }
 
         guard let context = CGContext(
             data: nil,
@@ -160,7 +256,11 @@ enum ImageProcessor {
         // CG uses bottom-left origin, so top = high Y, bottom = low Y
         let overlayX: CGFloat
         let overlayY: CGFloat
-        switch overlayPosition {
+        switch resolvedPosition {
+        case .auto:
+            // Already resolved above; fallback to topLeft
+            overlayX = CGFloat(padding)
+            overlayY = CGFloat(height - overlayHeight - padding)
         case .topLeft:
             overlayX = CGFloat(padding)
             overlayY = CGFloat(height - overlayHeight - padding)
