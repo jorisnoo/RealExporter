@@ -10,7 +10,7 @@ enum ImageStyle: String, CaseIterable, Identifiable {
     var description: String {
         switch self {
         case .combined:
-            return "Front camera overlaid on back camera"
+            return "Each photo overlaid on the other, both ways"
         case .separate:
             return "Front and back as separate files"
         case .both:

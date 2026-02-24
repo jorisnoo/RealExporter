@@ -61,21 +61,14 @@ struct DataSummaryView: View {
     }
 
     private var userSection: some View {
-        HStack(spacing: 16) {
-            Image(systemName: "person.circle.fill")
-                .font(.system(size: 48))
-                .foregroundColor(.accentColor)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(data.user.fullname)
+                .font(.title2)
+                .fontWeight(.semibold)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(data.user.fullname)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text("@\(data.user.username)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-
+            Text("@\(data.user.username)")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
         }
     }
 
