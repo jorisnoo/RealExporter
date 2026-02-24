@@ -281,15 +281,62 @@ enum ImageProcessor {
         return scores
     }
 
+    private static func faceCornerScores(for image: CGImage) -> [OverlayPosition: Float] {
+        var scores: [OverlayPosition: Float] = [
+            .topLeft: 0, .topRight: 0, .bottomLeft: 0, .bottomRight: 0,
+        ]
+
+        let request = VNDetectFaceRectanglesRequest()
+        let handler = VNImageRequestHandler(cgImage: image)
+
+        do {
+            try handler.perform([request])
+        } catch {
+            return scores
+        }
+
+        guard let results = request.results, !results.isEmpty else {
+            return scores
+        }
+
+        for face in results {
+            let box = face.boundingBox // normalised, bottom-left origin
+            let centerX = box.midX
+            let centerY = box.midY
+            let area = Float(box.width * box.height) // larger face → stronger penalty
+
+            // Map face center to the corner it falls in
+            let position: OverlayPosition
+            if centerX < 0.5 {
+                position = centerY >= 0.5 ? .topLeft : .bottomLeft
+            } else {
+                position = centerY >= 0.5 ? .topRight : .bottomRight
+            }
+
+            scores[position, default: 0] += area
+        }
+
+        return scores
+    }
+
     private static func bestCorner(
         for image: CGImage,
         overlayWidth: Int,
         overlayHeight: Int,
         padding: Int
     ) -> OverlayPosition {
+        let faceScores = faceCornerScores(for: image)
+        // Weight high enough that a face almost always pushes overlay away,
+        // but saliency still resolves ties between face-free corners.
+        let faceWeight: Float = 10.0
+
         // Prefer Vision saliency — pick the corner humans look at least
-        if let scores = saliencyScores(for: image, overlayWidth: overlayWidth, overlayHeight: overlayHeight, padding: padding) {
-            if let best = scores.min(by: { $0.value < $1.value }) {
+        if let saliency = saliencyScores(for: image, overlayWidth: overlayWidth, overlayHeight: overlayHeight, padding: padding) {
+            var combined: [OverlayPosition: Float] = [:]
+            for pos in [OverlayPosition.topLeft, .topRight, .bottomLeft, .bottomRight] {
+                combined[pos] = (saliency[pos] ?? 0) + (faceScores[pos] ?? 0) * faceWeight
+            }
+            if let best = combined.min(by: { $0.value < $1.value }) {
                 return best.key
             }
         }
@@ -320,8 +367,10 @@ enum ImageProcessor {
 
         for (pos, rx, ry) in corners {
             let v = regionVariance(data: lum, imageWidth: targetWidth, regionX: rx, regionY: ry, regionWidth: ow, regionHeight: oh)
-            if v < bestVariance {
-                bestVariance = v
+            let facePenalty = Double(faceScores[pos] ?? 0) * Double(faceWeight) * 1000
+            let adjusted = v + facePenalty
+            if adjusted < bestVariance {
+                bestVariance = adjusted
                 bestPos = pos
             }
         }

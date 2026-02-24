@@ -1,9 +1,9 @@
 import Foundation
 
 enum ImageStyle: String, CaseIterable, Identifiable {
+    case both = "Both"
     case combined = "Combined"
     case separate = "Separate"
-    case both = "Both"
 
     var id: String { rawValue }
 
