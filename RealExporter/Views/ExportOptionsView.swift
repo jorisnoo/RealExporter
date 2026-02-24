@@ -26,10 +26,6 @@ struct ExportOptionsView: View {
                         Divider()
 
                         contentSection
-
-                        Divider()
-
-                        destinationSection
                     }
                     .padding(24)
                     .background(
@@ -51,9 +47,7 @@ struct ExportOptionsView: View {
                 Spacer()
 
                 Button("Start Export") {
-                    if options.destinationURL == nil {
-                        selectDestination()
-                    }
+                    selectDestination()
                     if options.destinationURL != nil {
                         onExport()
                     }
@@ -63,9 +57,6 @@ struct ExportOptionsView: View {
             .padding(20)
         }
         .frame(minWidth: 500, minHeight: 500)
-        .onAppear {
-            loadLastDestination()
-        }
     }
 
     private var showOverlayPicker: Bool {
@@ -139,35 +130,6 @@ struct ExportOptionsView: View {
         }
     }
 
-    private var destinationSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Destination", systemImage: "arrow.down.doc")
-                .font(.headline)
-
-            HStack {
-                if let url = options.destinationURL {
-                    Image(systemName: "folder.fill")
-                        .foregroundColor(.accentColor)
-
-                    Text(url.path)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-
-                    Spacer()
-
-                    Button("Change") {
-                        selectDestination()
-                    }
-                } else {
-                    Button("Select Destination Folder") {
-                        selectDestination()
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-        }
-    }
-
     private func selectDestination() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
@@ -186,11 +148,4 @@ struct ExportOptionsView: View {
         }
     }
 
-    private func loadLastDestination() {
-        if options.destinationURL == nil,
-           let lastFolder = UserDefaults.standard.url(forKey: Self.lastExportFolderKey),
-           FileManager.default.fileExists(atPath: lastFolder.path) {
-            options.destinationURL = lastFolder
-        }
-    }
 }

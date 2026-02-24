@@ -41,6 +41,7 @@ enum OverlayPosition: String, CaseIterable, Identifiable {
     case topRight = "Top Right"
     case bottomLeft = "Bottom Left"
     case bottomRight = "Bottom Right"
+    case all = "All"
 
     var id: String { rawValue }
 }

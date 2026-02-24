@@ -89,14 +89,36 @@ enum ImageProcessor {
         let baseName = outputPath.deletingPathExtension().lastPathComponent
         let directory = outputPath.deletingLastPathComponent()
 
-        let backOutputPath = directory.appendingPathComponent("\(baseName)_combined_back.jpg")
-        let frontOutputPath = directory.appendingPathComponent("\(baseName)_combined_front.jpg")
+        if overlayPosition == .all {
+            let corners: [OverlayPosition] = [.topLeft, .topRight, .bottomLeft, .bottomRight]
+            for corner in corners {
+                let suffix = switch corner {
+                case .topLeft: "topLeft"
+                case .topRight: "topRight"
+                case .bottomLeft: "bottomLeft"
+                case .bottomRight: "bottomRight"
+                default: "topLeft"
+                }
 
-        let backAsBg = try stitchImages(back: backImage, front: frontImage, overlayPosition: overlayPosition)
-        try saveAsJPEG(image: backAsBg, to: backOutputPath, metadata: metadata)
+                let backOutputPath = directory.appendingPathComponent("\(baseName)_combined_back_\(suffix).jpg")
+                let frontOutputPath = directory.appendingPathComponent("\(baseName)_combined_front_\(suffix).jpg")
 
-        let frontAsBg = try stitchImages(back: frontImage, front: backImage, overlayPosition: overlayPosition)
-        try saveAsJPEG(image: frontAsBg, to: frontOutputPath, metadata: metadata)
+                let backAsBg = try stitchImages(back: backImage, front: frontImage, overlayPosition: corner)
+                try saveAsJPEG(image: backAsBg, to: backOutputPath, metadata: metadata)
+
+                let frontAsBg = try stitchImages(back: frontImage, front: backImage, overlayPosition: corner)
+                try saveAsJPEG(image: frontAsBg, to: frontOutputPath, metadata: metadata)
+            }
+        } else {
+            let backOutputPath = directory.appendingPathComponent("\(baseName)_combined_back.jpg")
+            let frontOutputPath = directory.appendingPathComponent("\(baseName)_combined_front.jpg")
+
+            let backAsBg = try stitchImages(back: backImage, front: frontImage, overlayPosition: overlayPosition)
+            try saveAsJPEG(image: backAsBg, to: backOutputPath, metadata: metadata)
+
+            let frontAsBg = try stitchImages(back: frontImage, front: backImage, overlayPosition: overlayPosition)
+            try saveAsJPEG(image: frontAsBg, to: frontOutputPath, metadata: metadata)
+        }
     }
 
     private static func saveSeparateImages(
@@ -433,6 +455,9 @@ enum ImageProcessor {
         case .bottomRight:
             overlayX = CGFloat(width - overlayWidth - padding)
             overlayY = CGFloat(padding)
+        case .all:
+            overlayX = CGFloat(padding)
+            overlayY = CGFloat(height - overlayHeight - padding)
         }
         let overlayRect = CGRect(
             x: overlayX,
