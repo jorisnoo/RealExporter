@@ -1,0 +1,114 @@
+name: Build, Sign, Notarise and Release
+
+on:
+  push:
+    tags:
+      - '[0-9]*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Extract repository name
+        run: |
+          # Extract repo name from GitHub repository (owner/repo -> repo)
+          REPO_NAME="${{ github.repository }}"
+          REPO_NAME="${REPO_NAME##*/}"
+          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
+
+      - name: Extract app name from Xcode project
+        run: |
+          XCODE_PROJECT=$(ls -d *.xcodeproj | head -1)
+          XCODE_SCHEME="${XCODE_PROJECT%.xcodeproj}"
+
+          # Get the actual PRODUCT_NAME from Xcode build settings
+          APP_NAME=$(xcodebuild -project "$XCODE_PROJECT" -scheme "$XCODE_SCHEME" -showBuildSettings 2>/dev/null | grep "^ *PRODUCT_NAME = " | head -1 | sed 's/.*= //' | xargs)
+
+          # Fallback to scheme name if PRODUCT_NAME not found
+          if [[ -z "$APP_NAME" ]]; then
+            echo "Warning: Could not determine PRODUCT_NAME, falling back to scheme name"
+            APP_NAME="$XCODE_SCHEME"
+          fi
+
+          echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
+
+      - name: Import code signing certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.MACOS_CI_KEYCHAIN_PWD }}
+        run: |
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          echo -n "$MACOS_CERTIFICATE" | base64 --decode -o $CERTIFICATE_PATH
+
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" $KEYCHAIN_PATH
+
+          security import $CERTIFICATE_PATH -P "$MACOS_CERTIFICATE_PWD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$MACOS_CI_KEYCHAIN_PWD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Build, sign, and notarise
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.MACOS_CERTIFICATE_NAME }}
+        run: |
+          ./scripts/build-release.sh --clean --notarise --version "${{ steps.version.outputs.VERSION }}"
+
+      - name: Extract release notes
+        id: changelog
+        run: |
+          VERSION="${{ github.ref_name }}"
+          REPO="${{ github.repository }}"
+          APP_NAME="${{ env.APP_NAME }}"
+
+          # Create download section
+          cat > release_notes.md << EOF
+          ## Download
+
+          **[⬇️ ${APP_NAME}-${VERSION}.dmg](https://github.com/${REPO}/releases/download/${VERSION}/${APP_NAME}-${VERSION}.dmg)** – Double-click and drag to Applications
+
+          ---
+
+          ## What's Changed
+
+          EOF
+
+          # Append changelog
+          awk "/^## \[${VERSION}\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**Full Changelog:** https://github.com/${REPO}/blob/main/CHANGELOG.md" >> release_notes.md
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            "build/${{ env.APP_NAME }}-${{ github.ref_name }}.dmg" \
+            "build/${{ env.APP_NAME }}-${{ github.ref_name }}.zip" \
+            --title "Release ${{ github.ref_name }}" \
+            --notes-file release_notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true

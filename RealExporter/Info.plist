@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AptabaseAppKey</key>
+	<string></string>
+	<key>AptabaseHost</key>
+	<string>https://aptabase-endpoint-h42wr.bunny.run</string>
+	<key>GHRepositoryOwner</key>
+	<string>jorisnoo</string>
+	<key>GHRepositoryName</key>
+	<string>RealExporter</string>
+</dict>
+</plist>

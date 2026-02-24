@@ -71,6 +71,8 @@
 			);
 			name = RealExporter;
 			packageProductDependencies = (
+				CF748F822F14800200799E78 /* AppUpdater */,
+				CF748F832F14800300799E78 /* Aptabase */,
 			);
 			productName = RealExporter;
 			productReference = CF748EA42F13B17500799E78 /* RealExporter.app */;
@@ -100,6 +102,10 @@
 			);
 			mainGroup = CF748E9B2F13B17500799E78;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CF748F802F14800000799E78 /* XCRemoteSwiftPackageReference "AppUpdater" */,
+				CF748F812F14800100799E78 /* XCRemoteSwiftPackageReference "aptabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CF748EA52F13B17500799E78 /* Products */;
 			projectDirPath = "";
@@ -266,6 +272,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RealExporter/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -298,6 +305,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RealExporter/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -338,6 +346,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CF748F802F14800000799E78 /* XCRemoteSwiftPackageReference "AppUpdater" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jorisnoo/AppUpdater.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
+		CF748F812F14800100799E78 /* XCRemoteSwiftPackageReference "aptabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jorisnoo/aptabase-swift";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CF748F822F14800200799E78 /* AppUpdater */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CF748F802F14800000799E78 /* XCRemoteSwiftPackageReference "AppUpdater" */;
+			productName = AppUpdater;
+		};
+		CF748F832F14800300799E78 /* Aptabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CF748F812F14800100799E78 /* XCRemoteSwiftPackageReference "aptabase-swift" */;
+			productName = Aptabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = CF748E9C2F13B17500799E78 /* Project object */;
 }
