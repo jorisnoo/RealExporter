@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>AptabaseAppKey</key>
-	<string></string>
+	<string>A-EU-4111441577</string>
 	<key>AptabaseHost</key>
 	<string>https://aptabase-endpoint-h42wr.bunny.run</string>
 	<key>GHRepositoryOwner</key>
