@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1](https://github.com/jorisnoo/RealExporter/releases/tag/v0.1.1) (2026-02-25)
+
+### Features
+
+- add location data to memory model and export ([944b667](https://github.com/jorisnoo/RealExporter/commit/944b667c854773607e40c59ae5eaefb5cb11e929))
+- add export analytics tracking and video count to export progress view ([01fa872](https://github.com/jorisnoo/RealExporter/commit/01fa87289034370065326a7a4f332d26fae18cf4))
+- add video support ([bb9c8e1](https://github.com/jorisnoo/RealExporter/commit/bb9c8e1ac84b1390310eba149bc1bfadd8e7bfe8))
+
+### Bug Fixes
+
+- disable App Sandbox for non-App Store builds ([b3b2711](https://github.com/jorisnoo/RealExporter/commit/b3b2711e584ae903a82e467d218113ab9fb9bae3))
+- add apta key ([07994a4](https://github.com/jorisnoo/RealExporter/commit/07994a4ac311d1a9206d0a33f50f6f02723311ed))
 ## [0.1.0](https://github.com/jorisnoo/RealExporter/releases/tag/v0.1.0) (2026-02-25)
 
 ### Features
