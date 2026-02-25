@@ -76,7 +76,7 @@ enum Exporter {
                     date: memory.takenTime,
                     backPath: backPath,
                     frontPath: frontPath,
-                    location: nil,
+                    location: memory.location,
                     caption: memory.caption
                 )
             }

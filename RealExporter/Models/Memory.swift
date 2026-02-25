@@ -10,6 +10,7 @@ struct Memory: Codable, Identifiable {
     let isLate: Bool?
     let date: Date
     let takenTime: Date
+    let location: Location?
     let berealMoment: Date?
 
     var id: String {
