@@ -5,19 +5,18 @@
 <h1 align="center">RealExporter</h1>
 
 <p align="center">
-  A macOS app to export and convert your BeReal data into various formats.
+  A macOS app to export and convert your BeReal data.
 </p>
 
 <p align="center">
-  <a href="https://github.com/jorisnoo/RealExporter/releases/latest">Download</a>
+  ✨ <a href="https://github.com/jorisnoo/RealExporter/releases/latest">Download</a> ✨
 </p>
 
 ---
 
 <p align="center">
-  <img src="assets/screenshot-1.jpg" alt="Screenshot" width="800">
-  <br><br>
-  <img src="assets/screenshot-2.jpg" alt="Screenshot" width="800">
+  <img src="assets/screenshot-1.png" alt="Screenshot" width="400">
+  <img src="assets/screenshot-2.png" alt="Screenshot" width="400">
 </p>
 
 ## Requirements
@@ -58,4 +57,7 @@ Build and run with Xcode 16+.
 >
 > Thank you.
 
-BeReal must respond within **45 days**. You'll receive a ZIP file containing your photos and metadata — that's the file you load into RealExporter.
+BeReal must respond within 45 days.
+They will send you a link in the app: **Help** > **Contact Us** > **Messages**.
+
+You'll receive a ZIP file containing your photos and metadata — that's the file you load into RealExporter.
