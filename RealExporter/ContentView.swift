@@ -48,6 +48,8 @@ final class AppViewModel {
         exportState = .exporting
         exportProgress = ExportProgress(current: 0, total: data.uniqueBeRealCount, currentItem: "")
 
+        Analytics.exportStarted(count: data.uniqueBeRealCount)
+
         exportTask = Task {
             do {
                 try await Exporter.export(
@@ -56,6 +58,11 @@ final class AppViewModel {
                 ) { progress in
                     self.exportProgress = progress
                 }
+                Analytics.exportCompleted(
+                    count: data.uniqueBeRealCount,
+                    imageStyle: self.exportOptions.imageStyle.rawValue,
+                    folderStructure: self.exportOptions.folderStructure.rawValue
+                )
                 self.exportState = .completed
             } catch is CancellationError {
                 self.exportState = .cancelled
@@ -135,6 +142,7 @@ struct ContentView: View {
                     progress: viewModel.exportProgress,
                     state: viewModel.exportState,
                     destinationURL: viewModel.exportOptions.destinationURL,
+                    videoCount: viewModel.loadedData?.uniqueVideoCount ?? 0,
                     onCancel: {
                         viewModel.cancelExport()
                     },

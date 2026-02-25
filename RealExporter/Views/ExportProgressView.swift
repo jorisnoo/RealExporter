@@ -11,6 +11,7 @@ struct ExportProgressView: View {
     let progress: ExportProgress
     let state: ExportState
     let destinationURL: URL?
+    let videoCount: Int
     let onCancel: () -> Void
     let onDone: () -> Void
 
@@ -91,7 +92,7 @@ struct ExportProgressView: View {
                 .font(.system(size: 64))
                 .foregroundColor(.green)
 
-            Text("Successfully exported \(progress.total) images")
+            Text("Successfully exported \(progress.total) images" + (videoCount > 0 ? " and \(videoCount) videos" : ""))
                 .font(.headline)
 
             if let url = destinationURL {
