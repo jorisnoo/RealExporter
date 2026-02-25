@@ -87,6 +87,12 @@ struct DataSummaryView: View {
             )
 
             statItem(
+                icon: "video.fill",
+                value: "\(data.uniqueVideoCount)",
+                label: "Videos"
+            )
+
+            statItem(
                 icon: "text.bubble",
                 value: "\(data.comments.count)",
                 label: "Comments"

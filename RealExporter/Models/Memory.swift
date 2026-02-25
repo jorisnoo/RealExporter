@@ -3,6 +3,7 @@ import Foundation
 struct Memory: Codable, Identifiable {
     let frontImage: MediaReference
     let backImage: MediaReference
+    let btsMedia: MediaReference?
     let primaryPlaceholder: MediaReference?
     let secondaryPlaceholder: MediaReference?
     let caption: String?
@@ -17,6 +18,10 @@ struct Memory: Codable, Identifiable {
 
     var hasBothImages: Bool {
         !frontImage.isVideo && !backImage.isVideo
+    }
+
+    var hasVideo: Bool {
+        frontImage.isVideo || backImage.isVideo || btsMedia != nil
     }
 
     var frontImageForExport: MediaReference {

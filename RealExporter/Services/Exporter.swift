@@ -82,7 +82,73 @@ enum Exporter {
             }
         }
 
+        var videoItems: [String: (date: Date, backPath: URL, frontPath: URL, backExt: String, frontExt: String, location: Location?, caption: String?)] = [:]
+
+        for post in data.posts where post.primary.isVideo || post.secondary.isVideo {
+            let backPath = post.primary.localPath(relativeTo: data.baseURL)
+            let frontPath = post.secondary.localPath(relativeTo: data.baseURL)
+
+            guard fileManager.fileExists(atPath: backPath.path) &&
+                  fileManager.fileExists(atPath: frontPath.path) else {
+                continue
+            }
+
+            let key = post.primary.path
+            videoItems[key] = (
+                date: post.takenAt,
+                backPath: backPath,
+                frontPath: frontPath,
+                backExt: backPath.pathExtension,
+                frontExt: frontPath.pathExtension,
+                location: post.location,
+                caption: post.caption
+            )
+        }
+
+        for memory in data.memories where memory.frontImage.isVideo || memory.backImage.isVideo {
+            let backPath = memory.backImage.localPath(relativeTo: data.baseURL)
+            let frontPath = memory.frontImage.localPath(relativeTo: data.baseURL)
+
+            guard fileManager.fileExists(atPath: backPath.path) &&
+                  fileManager.fileExists(atPath: frontPath.path) else {
+                continue
+            }
+
+            let key = memory.backImage.path
+            if videoItems[key] == nil {
+                videoItems[key] = (
+                    date: memory.takenTime,
+                    backPath: backPath,
+                    frontPath: frontPath,
+                    backExt: backPath.pathExtension,
+                    frontExt: frontPath.pathExtension,
+                    location: nil,
+                    caption: memory.caption
+                )
+            }
+        }
+
+        var btsItems: [String: (date: Date, path: URL, ext: String)] = [:]
+
+        for post in data.posts {
+            guard let bts = post.btsMedia else { continue }
+            let btsPath = bts.localPath(relativeTo: data.baseURL)
+            guard fileManager.fileExists(atPath: btsPath.path) else { continue }
+            btsItems[bts.path] = (date: post.takenAt, path: btsPath, ext: btsPath.pathExtension)
+        }
+
+        for memory in data.memories {
+            guard let bts = memory.btsMedia else { continue }
+            let btsPath = bts.localPath(relativeTo: data.baseURL)
+            guard fileManager.fileExists(atPath: btsPath.path) else { continue }
+            if btsItems[bts.path] == nil {
+                btsItems[bts.path] = (date: memory.takenTime, path: btsPath, ext: btsPath.pathExtension)
+            }
+        }
+
         let itemsToExport = mergedItems.map { (postId: $0.key, item: $0.value) }.sorted { $0.item.date < $1.item.date }
+        let videosToExport = videoItems.values.sorted { $0.date < $1.date }
+        let btsToExport = btsItems.values.sorted { $0.date < $1.date }
 
         var commentsByPostId: [String: [String]] = [:]
         if options.includeComments {
@@ -92,7 +158,7 @@ enum Exporter {
         }
 
         let conversationImages = options.includeConversations ? data.conversationImages : []
-        let total = itemsToExport.count + conversationImages.count
+        let total = itemsToExport.count + videosToExport.count + btsToExport.count + conversationImages.count
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd_HHmmss"
         let imageStyle = options.imageStyle
@@ -145,6 +211,62 @@ enum Exporter {
                 current: currentIndex,
                 total: total,
                 currentItem: outputPath.lastPathComponent
+            )
+            await progressHandler(progress)
+        }
+
+        for video in videosToExport {
+            try Task.checkCancellation()
+            await Task.yield()
+
+            let outputDirectory = try buildOutputDirectory(
+                for: video.date,
+                folderStructure: folderStructure,
+                destinationURL: destinationURL
+            )
+
+            let baseName = "bereal_\(dateFormatter.string(from: video.date))"
+            let backOutput = outputDirectory.appendingPathComponent("\(baseName)_back.\(video.backExt)")
+            let frontOutput = outputDirectory.appendingPathComponent("\(baseName)_front.\(video.frontExt)")
+
+            if !fileManager.fileExists(atPath: backOutput.path) {
+                try fileManager.copyItem(at: video.backPath, to: backOutput)
+            }
+            if !fileManager.fileExists(atPath: frontOutput.path) {
+                try fileManager.copyItem(at: video.frontPath, to: frontOutput)
+            }
+
+            currentIndex += 1
+            let progress = ExportProgress(
+                current: currentIndex,
+                total: total,
+                currentItem: "\(baseName)_back.\(video.backExt)"
+            )
+            await progressHandler(progress)
+        }
+
+        for bts in btsToExport {
+            try Task.checkCancellation()
+            await Task.yield()
+
+            let outputDirectory = try buildOutputDirectory(
+                for: bts.date,
+                folderStructure: folderStructure,
+                destinationURL: destinationURL
+            )
+
+            let baseName = "bereal_\(dateFormatter.string(from: bts.date))_bts.\(bts.ext)"
+            let outputPath = outputDirectory.appendingPathComponent(baseName)
+
+            if !fileManager.fileExists(atPath: outputPath.path) {
+                try fileManager.copyItem(at: bts.path, to: outputPath)
+            }
+
+            currentIndex += 1
+            let progress = ExportProgress(
+                current: currentIndex,
+                total: total,
+                currentItem: baseName
             )
             await progressHandler(progress)
         }
@@ -204,14 +326,12 @@ enum Exporter {
         }
     }
 
-    private static func buildOutputPath(
+    private static func buildOutputDirectory(
         for date: Date,
         folderStructure: FolderStructure,
-        destinationURL: URL,
-        dateFormatter: DateFormatter
+        destinationURL: URL
     ) throws -> URL {
         let fileManager = FileManager.default
-        let filename = "bereal_\(dateFormatter.string(from: date)).jpg"
 
         let outputDirectory: URL
         switch folderStructure {
@@ -234,6 +354,21 @@ enum Exporter {
             try fileManager.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         }
 
+        return outputDirectory
+    }
+
+    private static func buildOutputPath(
+        for date: Date,
+        folderStructure: FolderStructure,
+        destinationURL: URL,
+        dateFormatter: DateFormatter
+    ) throws -> URL {
+        let outputDirectory = try buildOutputDirectory(
+            for: date,
+            folderStructure: folderStructure,
+            destinationURL: destinationURL
+        )
+        let filename = "bereal_\(dateFormatter.string(from: date)).jpg"
         return outputDirectory.appendingPathComponent(filename)
     }
 }

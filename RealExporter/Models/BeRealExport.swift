@@ -23,6 +23,28 @@ struct BeRealExport {
         return uniquePaths.count
     }
 
+    var uniqueVideoCount: Int {
+        var uniquePaths = Set<String>()
+
+        for post in posts where post.primary.isVideo || post.secondary.isVideo {
+            uniquePaths.insert(post.primary.path)
+        }
+
+        for memory in memories where memory.frontImage.isVideo || memory.backImage.isVideo {
+            uniquePaths.insert(memory.backImage.path)
+        }
+
+        for post in posts where post.btsMedia != nil {
+            uniquePaths.insert(post.btsMedia!.path)
+        }
+
+        for memory in memories where memory.btsMedia != nil {
+            uniquePaths.insert(memory.btsMedia!.path)
+        }
+
+        return uniquePaths.count
+    }
+
     var dateRange: ClosedRange<Date>? {
         let postDates = posts.map { $0.takenAt }
         let memoryDates = memories.map { $0.takenTime }

@@ -3,6 +3,7 @@ import Foundation
 struct Post: Codable, Identifiable {
     let primary: MediaReference
     let secondary: MediaReference
+    let btsMedia: MediaReference?
     let retakeCounter: Int?
     let caption: String?
     let location: Location?
@@ -15,5 +16,9 @@ struct Post: Codable, Identifiable {
 
     var hasBothImages: Bool {
         !primary.isVideo && !secondary.isVideo
+    }
+
+    var hasVideo: Bool {
+        primary.isVideo || secondary.isVideo || btsMedia != nil
     }
 }
