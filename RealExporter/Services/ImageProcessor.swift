@@ -442,7 +442,6 @@ enum ImageProcessor {
 
         let padding = width / 30
         let cornerRadius = overlayWidth / 12
-        let borderWidth = max(2, width / 200)
 
         guard let context = CGContext(
             data: nil,
@@ -481,17 +480,6 @@ enum ImageProcessor {
             width: CGFloat(overlayWidth),
             height: CGFloat(overlayHeight)
         )
-
-        let borderRect = overlayRect.insetBy(dx: CGFloat(-borderWidth), dy: CGFloat(-borderWidth))
-        let borderPath = CGPath(
-            roundedRect: borderRect,
-            cornerWidth: CGFloat(cornerRadius + borderWidth),
-            cornerHeight: CGFloat(cornerRadius + borderWidth),
-            transform: nil
-        )
-        context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
-        context.addPath(borderPath)
-        context.fillPath()
 
         let clipPath = CGPath(
             roundedRect: overlayRect,
