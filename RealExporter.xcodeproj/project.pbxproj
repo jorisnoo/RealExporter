@@ -12,15 +12,31 @@
 		CF748F6F2F14688800799E78 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = CF748F6D2F14688800799E78 /* AppIcon.icon */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		CF9A00072F5A000100018A6B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CF748E9C2F13B17500799E78 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CF748EA32F13B17500799E78;
+			remoteInfo = RealExporter;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		CF748EA42F13B17500799E78 /* RealExporter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RealExporter.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CF748F6D2F14688800799E78 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
+		CF9A00012F5A000100018A6B /* RealExporterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RealExporterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CF748EA62F13B17500799E78 /* RealExporter */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = RealExporter;
+			sourceTree = "<group>";
+		};
+		CF9A00022F5A000100018A6B /* RealExporterTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RealExporterTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +51,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CF9A00032F5A000100018A6B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -43,6 +66,7 @@
 			children = (
 				CF748F6D2F14688800799E78 /* AppIcon.icon */,
 				CF748EA62F13B17500799E78 /* RealExporter */,
+				CF9A00022F5A000100018A6B /* RealExporterTests */,
 				CF748EA52F13B17500799E78 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -51,6 +75,7 @@
 			isa = PBXGroup;
 			children = (
 				CF748EA42F13B17500799E78 /* RealExporter.app */,
+				CF9A00012F5A000100018A6B /* RealExporterTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -82,6 +107,26 @@
 			productReference = CF748EA42F13B17500799E78 /* RealExporter.app */;
 			productType = "com.apple.product-type.application";
 		};
+		CF9A00062F5A000100018A6B /* RealExporterTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CF9A000B2F5A000100018A6B /* Build configuration list for PBXNativeTarget "RealExporterTests" */;
+			buildPhases = (
+				CF9A00052F5A000100018A6B /* Sources */,
+				CF9A00032F5A000100018A6B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CF9A00082F5A000100018A6B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CF9A00022F5A000100018A6B /* RealExporterTests */,
+			);
+			name = RealExporterTests;
+			productName = RealExporterTests;
+			productReference = CF9A00012F5A000100018A6B /* RealExporterTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -94,6 +139,10 @@
 				TargetAttributes = {
 					CF748EA32F13B17500799E78 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					CF9A00062F5A000100018A6B = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = CF748EA32F13B17500799E78;
 					};
 				};
 			};
@@ -116,6 +165,7 @@
 			projectRoot = "";
 			targets = (
 				CF748EA32F13B17500799E78 /* RealExporter */,
+				CF9A00062F5A000100018A6B /* RealExporterTests */,
 			);
 		};
 /* End PBXProject section */
@@ -139,7 +189,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CF9A00052F5A000100018A6B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CF9A00082F5A000100018A6B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CF748EA32F13B17500799E78 /* RealExporter */;
+			targetProxy = CF9A00072F5A000100018A6B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		CF748EAD2F13B17600799E78 /* Debug */ = {
@@ -328,8 +393,47 @@
 			};
 			name = Release;
 		};
+		CF9A00092F5A000100018A6B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T84UJ8Z67C;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ch.noordermeer.RealExporterTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RealExporter.app/Contents/MacOS/RealExporter";
+			};
+			name = Debug;
+		};
+		CF9A000A2F5A000100018A6B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T84UJ8Z67C;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ch.noordermeer.RealExporterTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RealExporter.app/Contents/MacOS/RealExporter";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
-
 
 /* Begin XCConfigurationList section */
 		CF748E9F2F13B17500799E78 /* Build configuration list for PBXProject "RealExporter" */ = {
@@ -346,6 +450,15 @@
 			buildConfigurations = (
 				CF748EB02F13B17600799E78 /* Debug */,
 				CF748EB12F13B17600799E78 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CF9A000B2F5A000100018A6B /* Build configuration list for PBXNativeTarget "RealExporterTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CF9A00092F5A000100018A6B /* Debug */,
+				CF9A000A2F5A000100018A6B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

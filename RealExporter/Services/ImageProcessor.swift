@@ -249,20 +249,37 @@ enum ImageProcessor {
         return sum / Float(count)
     }
 
-    private static func runVisionAnalysis(for image: CGImage) -> (saliency: VNSaliencyImageObservation?, faces: [VNFaceObservation]) {
-        let saliencyRequest = VNGenerateAttentionBasedSaliencyImageRequest()
+    private static func runVisionAnalysis(for image: CGImage) -> (
+        attentionSaliency: VNSaliencyImageObservation?,
+        objectnessSaliency: VNSaliencyImageObservation?,
+        faces: [VNFaceObservation],
+        bodies: [VNHumanObservation],
+        animals: [VNRecognizedObjectObservation],
+        textObservations: [VNRecognizedTextObservation]
+    ) {
+        let attentionRequest = VNGenerateAttentionBasedSaliencyImageRequest()
+        let objectnessRequest = VNGenerateObjectnessBasedSaliencyImageRequest()
         let faceRequest = VNDetectFaceRectanglesRequest()
+        let bodyRequest = VNDetectHumanRectanglesRequest()
+        let animalRequest = VNRecognizeAnimalsRequest()
+        let textRequest = VNRecognizeTextRequest()
+        textRequest.recognitionLevel = .fast
+
         let handler = VNImageRequestHandler(cgImage: image)
 
         do {
-            try handler.perform([saliencyRequest, faceRequest])
+            try handler.perform([attentionRequest, objectnessRequest, faceRequest, bodyRequest, animalRequest, textRequest])
         } catch {
-            return (nil, [])
+            return (nil, nil, [], [], [], [])
         }
 
-        let saliency = saliencyRequest.results?.first
+        let attention = attentionRequest.results?.first
+        let objectness = objectnessRequest.results?.first
         let faces = faceRequest.results ?? []
-        return (saliency, faces)
+        let bodies = bodyRequest.results ?? []
+        let animals = animalRequest.results ?? []
+        let textObservations = textRequest.results ?? []
+        return (attention, objectness, faces, bodies, animals, textObservations)
     }
 
     private static func saliencyScoresFromObservation(
@@ -343,8 +360,91 @@ enum ImageProcessor {
 
         for face in faces {
             let faceRect = face.boundingBox
+            let faceArea = faceRect.width * faceRect.height
             for (pos, overlayRect) in cornerRects {
                 let intersection = overlayRect.intersection(faceRect)
+                if !intersection.isNull {
+                    let overlapRatio = (intersection.width * intersection.height) / faceArea
+                    if overlapRatio > 0.15 {
+                        scores[pos] = 1.0
+                    }
+                }
+            }
+        }
+
+        return scores
+    }
+
+    private static func bodyOverlapScores(
+        bodies: [VNHumanObservation],
+        animals: [VNRecognizedObjectObservation],
+        overlayWidth: Int,
+        overlayHeight: Int,
+        imageWidth: Int,
+        imageHeight: Int,
+        padding: Int
+    ) -> [OverlayPosition: Float] {
+        var scores: [OverlayPosition: Float] = [
+            .topLeft: 0, .topRight: 0, .bottomLeft: 0, .bottomRight: 0,
+        ]
+
+        let allBoxes: [CGRect] = bodies.map(\.boundingBox) + animals.map(\.boundingBox)
+        guard !allBoxes.isEmpty else { return scores }
+
+        let ow = Double(overlayWidth) / Double(imageWidth)
+        let oh = Double(overlayHeight) / Double(imageHeight)
+        let padX = Double(padding) / Double(imageWidth)
+        let padY = Double(padding) / Double(imageHeight)
+
+        let cornerRects: [(OverlayPosition, CGRect)] = [
+            (.topLeft,     CGRect(x: padX, y: 1 - oh - padY, width: ow, height: oh)),
+            (.topRight,    CGRect(x: 1 - ow - padX, y: 1 - oh - padY, width: ow, height: oh)),
+            (.bottomLeft,  CGRect(x: padX, y: padY, width: ow, height: oh)),
+            (.bottomRight, CGRect(x: 1 - ow - padX, y: padY, width: ow, height: oh)),
+        ]
+
+        for box in allBoxes {
+            for (pos, overlayRect) in cornerRects {
+                let intersection = overlayRect.intersection(box)
+                if !intersection.isNull {
+                    scores[pos, default: 0] += Float(intersection.width * intersection.height)
+                }
+            }
+        }
+
+        return scores
+    }
+
+    private static func textOverlapScores(
+        textObservations: [VNRecognizedTextObservation],
+        overlayWidth: Int,
+        overlayHeight: Int,
+        imageWidth: Int,
+        imageHeight: Int,
+        padding: Int
+    ) -> [OverlayPosition: Float] {
+        var scores: [OverlayPosition: Float] = [
+            .topLeft: 0, .topRight: 0, .bottomLeft: 0, .bottomRight: 0,
+        ]
+
+        guard !textObservations.isEmpty else { return scores }
+
+        let ow = Double(overlayWidth) / Double(imageWidth)
+        let oh = Double(overlayHeight) / Double(imageHeight)
+        let padX = Double(padding) / Double(imageWidth)
+        let padY = Double(padding) / Double(imageHeight)
+
+        let cornerRects: [(OverlayPosition, CGRect)] = [
+            (.topLeft,     CGRect(x: padX, y: 1 - oh - padY, width: ow, height: oh)),
+            (.topRight,    CGRect(x: 1 - ow - padX, y: 1 - oh - padY, width: ow, height: oh)),
+            (.bottomLeft,  CGRect(x: padX, y: padY, width: ow, height: oh)),
+            (.bottomRight, CGRect(x: 1 - ow - padX, y: padY, width: ow, height: oh)),
+        ]
+
+        for text in textObservations {
+            let textRect = text.boundingBox
+            for (pos, overlayRect) in cornerRects {
+                let intersection = overlayRect.intersection(textRect)
                 if !intersection.isNull {
                     scores[pos, default: 0] += Float(intersection.width * intersection.height)
                 }
@@ -369,16 +469,51 @@ enum ImageProcessor {
             imageHeight: image.height,
             padding: padding
         )
-        // Weight high enough that a face almost always pushes overlay away,
-        // but saliency still resolves ties between face-free corners.
+        let bodyScores = bodyOverlapScores(
+            bodies: analysis.bodies,
+            animals: analysis.animals,
+            overlayWidth: overlayWidth,
+            overlayHeight: overlayHeight,
+            imageWidth: image.width,
+            imageHeight: image.height,
+            padding: padding
+        )
+        let textScores = textOverlapScores(
+            textObservations: analysis.textObservations,
+            overlayWidth: overlayWidth,
+            overlayHeight: overlayHeight,
+            imageWidth: image.width,
+            imageHeight: image.height,
+            padding: padding
+        )
+
         let faceWeight: Float = 10.0
+        let bodyWeight: Float = 5.0
+        let textWeight: Float = 3.0
 
         // Prefer Vision saliency — pick the corner humans look at least
-        if let saliencyObs = analysis.saliency,
-           let saliency = saliencyScoresFromObservation(saliencyObs, image: image, overlayWidth: overlayWidth, overlayHeight: overlayHeight, padding: padding) {
+        let attentionScores = analysis.attentionSaliency.flatMap {
+            saliencyScoresFromObservation($0, image: image, overlayWidth: overlayWidth, overlayHeight: overlayHeight, padding: padding)
+        }
+        let objectnessScores = analysis.objectnessSaliency.flatMap {
+            saliencyScoresFromObservation($0, image: image, overlayWidth: overlayWidth, overlayHeight: overlayHeight, padding: padding)
+        }
+
+        if attentionScores != nil || objectnessScores != nil {
             var combined: [OverlayPosition: Float] = [:]
             for pos in [OverlayPosition.topLeft, .topRight, .bottomLeft, .bottomRight] {
-                combined[pos] = (saliency[pos] ?? 0) + (faceScores[pos] ?? 0) * faceWeight
+                let attScore = attentionScores?[pos] ?? 0
+                let objScore = objectnessScores?[pos] ?? 0
+                let saliencyAvg: Float
+                if attentionScores != nil && objectnessScores != nil {
+                    saliencyAvg = (attScore + objScore) / 2.0
+                } else {
+                    saliencyAvg = attScore + objScore
+                }
+                combined[pos] = saliencyAvg
+                    + (faceScores[pos] ?? 0) * faceWeight
+                    + (bodyScores[pos] ?? 0) * bodyWeight
+                    + (textScores[pos] ?? 0) * textWeight
             }
             if let best = combined.min(by: { $0.value < $1.value }) {
                 return best.key
@@ -412,7 +547,9 @@ enum ImageProcessor {
         for (pos, rx, ry) in corners {
             let v = regionVariance(data: lum, imageWidth: targetWidth, regionX: rx, regionY: ry, regionWidth: ow, regionHeight: oh)
             let facePenalty = Double(faceScores[pos] ?? 0) * Double(faceWeight) * 1000
-            let adjusted = v + facePenalty
+            let bodyPenalty = Double(bodyScores[pos] ?? 0) * Double(bodyWeight) * 1000
+            let textPenalty = Double(textScores[pos] ?? 0) * Double(textWeight) * 1000
+            let adjusted = v + facePenalty + bodyPenalty + textPenalty
             if adjusted < bestVariance {
                 bestVariance = adjusted
                 bestPos = pos
@@ -487,6 +624,15 @@ enum ImageProcessor {
             cornerHeight: CGFloat(cornerRadius),
             transform: nil
         )
+
+        // Drop shadow behind the overlay
+        context.saveGState()
+        context.setShadow(offset: CGSize(width: 0, height: -2), blur: CGFloat(cornerRadius) / 2, color: CGColor(gray: 0, alpha: 0.5))
+        context.setFillColor(CGColor(gray: 0, alpha: 1))
+        context.addPath(clipPath)
+        context.fillPath()
+        context.restoreGState()
+
         context.saveGState()
         context.addPath(clipPath)
         context.clip()
@@ -519,7 +665,7 @@ enum ImageProcessor {
         }
     }
 
-    private static func buildExifProperties(metadata: ExportMetadata) -> [String: Any] {
+    static func buildExifProperties(metadata: ExportMetadata) -> [String: Any] {
         var properties: [String: Any] = [:]
 
         properties[kCGImageDestinationLossyCompressionQuality as String] = 0.9
