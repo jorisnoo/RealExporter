@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2](https://github.com/jorisnoo/RealExporter/releases/tag/v0.1.2) (2026-02-26)
+
+### Features
+
+- add unit test suite and enhance image processor with body, text, and objectness detection for smarter overlay placement ([61080d0](https://github.com/jorisnoo/RealExporter/commit/61080d0e9264999435d85c04f66490777ca1cc01))
+
+### Code Refactoring
+
+- remove unused border drawing from image overlay ([ec3111f](https://github.com/jorisnoo/RealExporter/commit/ec3111f2003086fcc58bf5a3a58d9644d8df0cbc))
 ## [0.1.1](https://github.com/jorisnoo/RealExporter/releases/tag/v0.1.1) (2026-02-25)
 
 ### Features
