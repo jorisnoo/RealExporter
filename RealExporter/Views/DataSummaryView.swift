@@ -52,7 +52,7 @@ struct DataSummaryView: View {
             Divider()
 
             HStack {
-                Button("Back") {
+                Button("Start Over") {
                     onBack()
                 }
                 .buttonStyle(.bordered)
