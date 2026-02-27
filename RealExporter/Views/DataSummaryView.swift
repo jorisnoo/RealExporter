@@ -120,6 +120,7 @@ struct DataSummaryView: View {
 
     private static let trackHeight: CGFloat = 4
     private static let thumbDiameter: CGFloat = 18
+    private static let snapThreshold: CGFloat = 0.02
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -138,6 +139,34 @@ struct DataSummaryView: View {
         return range.lowerBound.addingTimeInterval(total * Double(position))
     }
 
+    private func yearBoundaries(in range: ClosedRange<Date>) -> [(position: CGFloat, year: Int)] {
+        let cal = Calendar.current
+        let startYear = cal.component(.year, from: range.lowerBound)
+        let endYear = cal.component(.year, from: range.upperBound)
+        var result: [(position: CGFloat, year: Int)] = []
+        for year in (startYear + 1)...endYear {
+            var comps = DateComponents()
+            comps.year = year
+            comps.month = 1
+            comps.day = 1
+            guard let jan1 = cal.date(from: comps) else { continue }
+            let pos = normalizedPosition(for: jan1, in: range)
+            if pos > 0 && pos < 1 {
+                result.append((position: pos, year: year))
+            }
+        }
+        return result
+    }
+
+    private func snapped(_ position: CGFloat, to boundaries: [(position: CGFloat, year: Int)]) -> CGFloat {
+        for b in boundaries {
+            if abs(position - b.position) < Self.snapThreshold {
+                return b.position
+            }
+        }
+        return position
+    }
+
     private func dateRangeSection(_ range: ClosedRange<Date>) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Date Range", systemImage: "calendar")
@@ -148,12 +177,21 @@ struct DataSummaryView: View {
                 let lowNorm = normalizedPosition(for: startDate, in: range)
                 let highNorm = normalizedPosition(for: endDate, in: range)
                 let halfThumb = Self.thumbDiameter / 2
+                let boundaries = yearBoundaries(in: range)
 
                 ZStack(alignment: .leading) {
                     // Background track
                     Capsule()
                         .fill(Color.gray.opacity(0.3))
                         .frame(height: Self.trackHeight)
+
+                    // Year boundary tick marks
+                    ForEach(boundaries, id: \.year) { boundary in
+                        Rectangle()
+                            .fill(Color.secondary.opacity(0.4))
+                            .frame(width: 1, height: 10)
+                            .offset(x: boundary.position * trackWidth - 0.5)
+                    }
 
                     // Active range
                     Capsule()
@@ -173,7 +211,8 @@ struct DataSummaryView: View {
                         .gesture(
                             DragGesture(minimumDistance: 0)
                                 .onChanged { value in
-                                    let clamped = min(max(0, value.location.x / trackWidth), highNorm)
+                                    let raw = min(max(0, value.location.x / trackWidth), highNorm)
+                                    let clamped = snapped(raw, to: boundaries)
                                     startDate = date(forNormalized: clamped, in: range)
                                 }
                         )
@@ -187,7 +226,8 @@ struct DataSummaryView: View {
                         .gesture(
                             DragGesture(minimumDistance: 0)
                                 .onChanged { value in
-                                    let clamped = min(max(lowNorm, value.location.x / trackWidth), 1)
+                                    let raw = min(max(lowNorm, value.location.x / trackWidth), 1)
+                                    let clamped = snapped(raw, to: boundaries)
                                     endDate = date(forNormalized: clamped, in: range)
                                 }
                         )
@@ -195,6 +235,22 @@ struct DataSummaryView: View {
                 .frame(height: Self.thumbDiameter)
             }
             .frame(height: Self.thumbDiameter)
+
+            // Year labels
+            GeometryReader { geo in
+                let trackWidth = geo.size.width
+                let boundaries = yearBoundaries(in: range)
+                ZStack(alignment: .leading) {
+                    ForEach(boundaries, id: \.year) { boundary in
+                        Text(verbatim: "\(boundary.year)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .fixedSize()
+                            .position(x: boundary.position * trackWidth, y: 6)
+                    }
+                }
+            }
+            .frame(height: 12)
 
             HStack {
                 Text(Self.dateFormatter.string(from: startDate))

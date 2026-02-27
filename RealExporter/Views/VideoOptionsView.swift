@@ -86,6 +86,7 @@ struct VideoOptionsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
 
             if options.imageContent == .combinedBackMain || options.imageContent == .combinedFrontMain {
                 VStack(alignment: .leading, spacing: 8) {
