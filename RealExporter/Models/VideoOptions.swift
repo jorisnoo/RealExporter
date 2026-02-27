@@ -27,7 +27,7 @@ enum VideoResolution: String, CaseIterable, Identifiable {
 }
 
 struct VideoOptions {
-    var imageContent: VideoImageContent = .combinedBackMain
+    var imageContent: VideoImageContent = .combinedFrontMain
     var framesPerSecond: Double = 8
     var resolution: VideoResolution = .original
     var showDateOverlay: Bool = false

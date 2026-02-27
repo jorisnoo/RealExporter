@@ -146,9 +146,31 @@ enum Exporter {
             }
         }
 
-        let itemsToExport = mergedItems.map { (postId: $0.key, item: $0.value) }.sorted { $0.item.date < $1.item.date }
-        let videosToExport = videoItems.values.sorted { $0.date < $1.date }
-        let btsToExport = btsItems.values.sorted { $0.date < $1.date }
+        let calendar = Calendar.current
+        let rangeStart = options.startDate.map { calendar.startOfDay(for: $0) }
+        let rangeEnd = options.endDate.map { calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: $0))! }
+
+        let itemsToExport = mergedItems.map { (postId: $0.key, item: $0.value) }
+            .filter { item in
+                if let start = rangeStart, item.item.date < start { return false }
+                if let end = rangeEnd, item.item.date > end { return false }
+                return true
+            }
+            .sorted { $0.item.date < $1.item.date }
+        let videosToExport = videoItems.values
+            .filter { item in
+                if let start = rangeStart, item.date < start { return false }
+                if let end = rangeEnd, item.date > end { return false }
+                return true
+            }
+            .sorted { $0.date < $1.date }
+        let btsToExport = btsItems.values
+            .filter { item in
+                if let start = rangeStart, item.date < start { return false }
+                if let end = rangeEnd, item.date > end { return false }
+                return true
+            }
+            .sorted { $0.date < $1.date }
 
         var commentsByPostId: [String: [String]] = [:]
         if options.includeComments {

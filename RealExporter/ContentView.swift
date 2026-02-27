@@ -61,6 +61,8 @@ final class AppViewModel {
     func startExport() {
         guard let data = loadedData else { return }
 
+        exportOptions.startDate = startDate
+        exportOptions.endDate = endDate
         appState = .exporting
         exportState = .exporting
         exportProgress = ExportProgress(current: 0, total: data.uniqueBeRealCount, currentItem: "")

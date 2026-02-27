@@ -53,6 +53,8 @@ struct ExportOptions {
     var includeConversations: Bool = true
     var includeComments: Bool = true
     var destinationURL: URL?
+    var startDate: Date?
+    var endDate: Date?
 
     var isValid: Bool {
         destinationURL != nil
