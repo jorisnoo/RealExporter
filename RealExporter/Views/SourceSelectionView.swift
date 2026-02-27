@@ -89,8 +89,16 @@ struct SourceSelectionView: View {
         panel.allowedContentTypes = [UTType.zip, UTType.folder]
         panel.message = "Select your BeReal data export"
 
+        if let lastPath = UserDefaults.standard.string(forKey: "lastImportDirectory") {
+            panel.directoryURL = URL(fileURLWithPath: lastPath)
+        }
+
         if panel.runModal() == .OK {
             selectedURL = panel.url
+            if let url = panel.url {
+                let directory = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
+                UserDefaults.standard.set(directory.path, forKey: "lastImportDirectory")
+            }
         }
     }
 }
