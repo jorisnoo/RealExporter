@@ -4,8 +4,11 @@ enum AppState {
     case selectSource
     case loading
     case summary
+    case hub
     case options
     case exporting
+    case videoOptions
+    case generatingVideo
 }
 
 @Observable
@@ -16,11 +19,13 @@ final class AppViewModel {
     var isLoading = false
     var loadedData: BeRealExport?
     var exportOptions = ExportOptions()
+    var videoOptions = VideoOptions()
     var exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
     var exportState: ExportState = .exporting
     var errorMessage: String?
 
     private var exportTask: Task<Void, Never>?
+    private var videoTask: Task<Void, Never>?
 
     func loadData(from url: URL) {
         isLoading = true
@@ -78,15 +83,68 @@ final class AppViewModel {
         exportTask?.cancel()
     }
 
+    func startVideoGeneration() {
+        guard let data = loadedData else { return }
+
+        appState = .generatingVideo
+        exportState = .exporting
+        exportProgress = ExportProgress(current: 0, total: data.uniqueBeRealCount, currentItem: "")
+
+        Analytics.videoStarted(count: data.uniqueBeRealCount)
+
+        videoTask = Task {
+            do {
+                try await VideoGenerator.generate(
+                    data: data,
+                    options: videoOptions
+                ) { progress in
+                    self.exportProgress = progress
+                }
+                Analytics.videoCompleted(
+                    count: data.uniqueBeRealCount,
+                    imageContent: self.videoOptions.imageContent.rawValue,
+                    resolution: self.videoOptions.resolution.rawValue,
+                    fps: self.videoOptions.framesPerSecond
+                )
+                self.exportState = .completed
+            } catch is CancellationError {
+                self.exportState = .cancelled
+            } catch VideoGeneratorError.cancelled {
+                self.exportState = .cancelled
+            } catch {
+                self.exportState = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    func cancelVideoGeneration() {
+        videoTask?.cancel()
+    }
+
+    func returnToHub() {
+        exportTask?.cancel()
+        exportTask = nil
+        videoTask?.cancel()
+        videoTask = nil
+        exportOptions = ExportOptions()
+        videoOptions = VideoOptions()
+        exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
+        exportState = .exporting
+        appState = .hub
+    }
+
     func resetToStart() {
         exportTask?.cancel()
         exportTask = nil
+        videoTask?.cancel()
+        videoTask = nil
         selectedURL = nil
         if let tempDir = loadedData?.temporaryDirectory {
             try? FileManager.default.removeItem(at: tempDir)
         }
         loadedData = nil
         exportOptions = ExportOptions()
+        videoOptions = VideoOptions()
         exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
         exportState = .exporting
         appState = .selectSource
@@ -115,7 +173,23 @@ struct ContentView: View {
                     DataSummaryView(
                         data: data,
                         onContinue: {
+                            viewModel.appState = .hub
+                        },
+                        onBack: {
+                            viewModel.resetToStart()
+                        }
+                    )
+                }
+
+            case .hub:
+                if let data = viewModel.loadedData {
+                    HubView(
+                        beRealCount: data.uniqueBeRealCount,
+                        onExportPhotos: {
                             viewModel.appState = .options
+                        },
+                        onCreateVideo: {
+                            viewModel.appState = .videoOptions
                         },
                         onBack: {
                             viewModel.resetToStart()
@@ -132,7 +206,7 @@ struct ContentView: View {
                             viewModel.startExport()
                         },
                         onBack: {
-                            viewModel.appState = .summary
+                            viewModel.appState = .hub
                         }
                     )
                 }
@@ -143,11 +217,40 @@ struct ContentView: View {
                     state: viewModel.exportState,
                     destinationURL: viewModel.exportOptions.destinationURL,
                     videoCount: viewModel.loadedData?.uniqueVideoCount ?? 0,
+                    context: .photoExport,
                     onCancel: {
                         viewModel.cancelExport()
                     },
                     onDone: {
-                        viewModel.resetToStart()
+                        viewModel.returnToHub()
+                    }
+                )
+
+            case .videoOptions:
+                if let data = viewModel.loadedData {
+                    VideoOptionsView(
+                        data: data,
+                        options: $viewModel.videoOptions,
+                        onCreateVideo: {
+                            viewModel.startVideoGeneration()
+                        },
+                        onBack: {
+                            viewModel.appState = .hub
+                        }
+                    )
+                }
+
+            case .generatingVideo:
+                ExportProgressView(
+                    progress: viewModel.exportProgress,
+                    state: viewModel.exportState,
+                    destinationURL: viewModel.videoOptions.destinationURL,
+                    context: .videoGeneration,
+                    onCancel: {
+                        viewModel.cancelVideoGeneration()
+                    },
+                    onDone: {
+                        viewModel.returnToHub()
                     }
                 )
             }

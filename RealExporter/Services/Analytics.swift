@@ -51,4 +51,17 @@ enum Analytics {
             "folder_structure": .string(folderStructure),
         ])
     }
+
+    static func videoStarted(count: Int) {
+        track("video_started", props: ["count": .integer(count)])
+    }
+
+    static func videoCompleted(count: Int, imageContent: String, resolution: String, fps: Double) {
+        track("video_completed", props: [
+            "count": .integer(count),
+            "image_content": .string(imageContent),
+            "resolution": .string(resolution),
+            "fps": .double(fps),
+        ])
+    }
 }

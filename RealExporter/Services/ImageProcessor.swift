@@ -665,6 +665,124 @@ enum ImageProcessor {
         }
     }
 
+    static func renderFrame(
+        backPath: URL,
+        frontPath: URL?,
+        imageContent: VideoImageContent,
+        overlayPosition: OverlayPosition,
+        targetSize: CGSize?
+    ) throws -> CGImage {
+        guard let backImage = loadImage(from: backPath) else {
+            throw ImageProcessorError.failedToLoadImage(backPath.path)
+        }
+
+        let rendered: CGImage
+        switch imageContent {
+        case .backOnly:
+            rendered = backImage
+        case .frontOnly:
+            guard let frontPath, let frontImage = loadImage(from: frontPath) else {
+                throw ImageProcessorError.failedToLoadImage(frontPath?.path ?? "nil")
+            }
+            rendered = frontImage
+        case .combined:
+            guard let frontPath, let frontImage = loadImage(from: frontPath) else {
+                throw ImageProcessorError.failedToLoadImage(frontPath?.path ?? "nil")
+            }
+            let position = overlayPosition == .auto
+                ? resolveAutoPosition(background: backImage, overlay: frontImage)
+                : overlayPosition
+            rendered = try stitchImages(back: backImage, front: frontImage, overlayPosition: position)
+        }
+
+        guard let targetSize, targetSize.width > 0, targetSize.height > 0 else {
+            return rendered
+        }
+
+        let srcAspect = Double(rendered.width) / Double(rendered.height)
+        let dstAspect = targetSize.width / targetSize.height
+
+        let fitWidth: Int
+        let fitHeight: Int
+        if srcAspect > dstAspect {
+            fitWidth = Int(targetSize.width)
+            fitHeight = Int(targetSize.width / srcAspect)
+        } else {
+            fitHeight = Int(targetSize.height)
+            fitWidth = Int(targetSize.height * srcAspect)
+        }
+
+        guard let ctx = CGContext(
+            data: nil,
+            width: fitWidth,
+            height: fitHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw ImageProcessorError.failedToCreateContext
+        }
+        ctx.interpolationQuality = .high
+        ctx.draw(rendered, in: CGRect(x: 0, y: 0, width: fitWidth, height: fitHeight))
+        guard let scaled = ctx.makeImage() else {
+            throw ImageProcessorError.failedToCreateImage
+        }
+        return scaled
+    }
+
+    static func drawDateOverlay(on image: CGImage, date: Date) throws -> CGImage {
+        let width = image.width
+        let height = image.height
+
+        guard let ctx = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw ImageProcessorError.failedToCreateContext
+        }
+
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, yyyy"
+        let dateString = formatter.string(from: date)
+
+        let fontSize = CGFloat(height) / 20
+        let barHeight = fontSize * 2
+
+        // Semi-transparent dark bar at bottom
+        ctx.setFillColor(CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.5))
+        ctx.fill(CGRect(x: 0, y: 0, width: width, height: Int(barHeight)))
+
+        // White text centered in bar
+        let font = CTFontCreateWithName("Helvetica-Bold" as CFString, fontSize, nil)
+        let attributes: [CFString: Any] = [
+            kCTFontAttributeName: font,
+            kCTForegroundColorFromContextAttributeName: true,
+        ]
+        let attrString = CFAttributedStringCreate(nil, dateString as CFString, attributes as CFDictionary)!
+        let line = CTLineCreateWithAttributedString(attrString)
+        let textBounds = CTLineGetBoundsWithOptions(line, [])
+
+        let textX = (CGFloat(width) - textBounds.width) / 2
+        let textY = (barHeight - textBounds.height) / 2
+
+        ctx.setFillColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 1))
+        ctx.textPosition = CGPoint(x: textX, y: textY)
+        CTLineDraw(line, ctx)
+
+        guard let result = ctx.makeImage() else {
+            throw ImageProcessorError.failedToCreateImage
+        }
+        return result
+    }
+
     static func buildExifProperties(metadata: ExportMetadata) -> [String: Any] {
         var properties: [String: Any] = [:]
 
