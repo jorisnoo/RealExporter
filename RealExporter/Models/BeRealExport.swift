@@ -45,6 +45,38 @@ struct BeRealExport {
         return uniquePaths.count
     }
 
+    func filteredConversationImages(startDate: Date?, endDate: Date?) -> [ConversationImage] {
+        let calendar = Calendar.current
+        let rangeStart = startDate.map { calendar.startOfDay(for: $0) }
+        let rangeEnd = endDate.map { calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: $0))! }
+
+        return conversationImages.filter { image in
+            guard let date = image.date else { return true }
+            if let start = rangeStart, date < start { return false }
+            if let end = rangeEnd, date > end { return false }
+            return true
+        }
+    }
+
+    func filteredComments(startDate: Date?, endDate: Date?) -> [Comment] {
+        let calendar = Calendar.current
+        let rangeStart = startDate.map { calendar.startOfDay(for: $0) }
+        let rangeEnd = endDate.map { calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: $0))! }
+
+        var postDateById: [String: Date] = [:]
+        for post in posts {
+            let postId = URL(fileURLWithPath: post.primary.path).lastPathComponent.replacingOccurrences(of: ".webp", with: "")
+            postDateById[postId] = post.takenAt
+        }
+
+        return comments.filter { comment in
+            guard let date = postDateById[comment.postId] else { return false }
+            if let start = rangeStart, date < start { return false }
+            if let end = rangeEnd, date > end { return false }
+            return true
+        }
+    }
+
     var dateRange: ClosedRange<Date>? {
         let postDates = posts.map { $0.takenAt }
         let memoryDates = memories.map { $0.takenTime }

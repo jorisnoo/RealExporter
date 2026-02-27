@@ -12,6 +12,14 @@ struct DataSummaryView: View {
         VideoGenerator.frameCount(data: data, startDate: startDate, endDate: endDate)
     }
 
+    private var filteredConversationCount: Int {
+        data.filteredConversationImages(startDate: startDate, endDate: endDate).count
+    }
+
+    private var filteredCommentCount: Int {
+        data.filteredComments(startDate: startDate, endDate: endDate).count
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -83,7 +91,7 @@ struct DataSummaryView: View {
 
             statItem(
                 icon: "bubble.left.and.bubble.right",
-                value: "\(data.conversationImages.count)",
+                value: "\(filteredConversationCount)",
                 label: "Chat Photos"
             )
 
@@ -95,7 +103,7 @@ struct DataSummaryView: View {
 
             statItem(
                 icon: "text.bubble",
-                value: "\(data.comments.count)",
+                value: "\(filteredCommentCount)",
                 label: "Comments"
             )
         }
@@ -262,7 +270,7 @@ struct DataSummaryView: View {
                     .foregroundColor(.secondary)
             }
 
-            Text("\(filteredCount) BeReals in selected range")
+            Text("\(filteredCount) BeReals, \(filteredConversationCount) chat photos, \(filteredCommentCount) comments in selected range")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }

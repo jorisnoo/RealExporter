@@ -758,32 +758,72 @@ enum ImageProcessor {
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
 
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        let dateString = formatter.string(from: date)
+        formatter.dateFormat = "d MMM yyyy"
+        let dateString = formatter.string(from: date).uppercased()
 
-        let fontSize = CGFloat(height) / 20
-        let barHeight = fontSize * 2
+        let fontSize = CGFloat(height) / 32
+        let margin = CGFloat(width) / 25
 
-        // Semi-transparent dark bar at bottom
-        ctx.setFillColor(CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.5))
-        ctx.fill(CGRect(x: 0, y: 0, width: width, height: Int(barHeight)))
+        // Font: SF Pro Rounded Medium, fallback to Helvetica Neue Medium
+        let font: CTFont
+        if let sfDescriptor = CTFontDescriptorCreateWithAttributes([
+            kCTFontFamilyNameAttribute: "SF Pro Rounded" as CFString,
+            kCTFontStyleNameAttribute: "Medium" as CFString,
+        ] as CFDictionary) as CTFontDescriptor? {
+            let sfFont = CTFontCreateWithFontDescriptor(sfDescriptor, fontSize, nil)
+            let actualFamily = CTFontCopyFamilyName(sfFont) as String
+            font = actualFamily == "SF Pro Rounded" ? sfFont : CTFontCreateWithName("HelveticaNeue-Medium" as CFString, fontSize, nil)
+        } else {
+            font = CTFontCreateWithName("HelveticaNeue-Medium" as CFString, fontSize, nil)
+        }
 
-        // White text centered in bar
-        let font = CTFontCreateWithName("Helvetica-Bold" as CFString, fontSize, nil)
         let attributes: [CFString: Any] = [
             kCTFontAttributeName: font,
             kCTForegroundColorFromContextAttributeName: true,
+            kCTKernAttributeName: 1.5 as CGFloat,
         ]
         let attrString = CFAttributedStringCreate(nil, dateString as CFString, attributes as CFDictionary)!
         let line = CTLineCreateWithAttributedString(attrString)
         let textBounds = CTLineGetBoundsWithOptions(line, [])
 
-        let textX = (CGFloat(width) - textBounds.width) / 2
-        let textY = (barHeight - textBounds.height) / 2
+        // Pill dimensions
+        let hPad = fontSize * 1.0
+        let vPad = fontSize * 0.5
+        let pillWidth = textBounds.width + hPad * 2
+        let pillHeight = textBounds.height + vPad * 2
+        let pillX = margin
+        let pillY = margin
+        let pillRect = CGRect(x: pillX, y: pillY, width: pillWidth, height: pillHeight)
+        let cornerRadius = pillHeight / 2
 
-        ctx.setFillColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 1))
+        // Pill shadow
+        ctx.saveGState()
+        ctx.setShadow(
+            offset: CGSize(width: 0, height: -2),
+            blur: 8,
+            color: CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.3)
+        )
+        let pillPath = CGPath(roundedRect: pillRect, cornerWidth: cornerRadius, cornerHeight: cornerRadius, transform: nil)
+        ctx.addPath(pillPath)
+        ctx.setFillColor(CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.45))
+        ctx.fillPath()
+        ctx.restoreGState()
+
+        // Text position (centered inside pill)
+        let textX = pillX + hPad - textBounds.origin.x
+        let textY = pillY + vPad - textBounds.origin.y
+
+        // Text shadow
+        ctx.saveGState()
+        ctx.setShadow(
+            offset: CGSize(width: 0, height: -1),
+            blur: 3,
+            color: CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.6)
+        )
+        ctx.setFillColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.95))
         ctx.textPosition = CGPoint(x: textX, y: textY)
         CTLineDraw(line, ctx)
+        ctx.restoreGState()
 
         guard let result = ctx.makeImage() else {
             throw ImageProcessorError.failedToCreateImage

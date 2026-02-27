@@ -5,6 +5,8 @@ struct ExportOptionsView: View {
 
     let data: BeRealExport
     @Binding var options: ExportOptions
+    let startDate: Date?
+    let endDate: Date?
     let onExport: () -> Void
     let onBack: () -> Void
 
@@ -123,14 +125,14 @@ struct ExportOptionsView: View {
             Toggle(isOn: $options.includeConversations) {
                 HStack {
                     Image(systemName: "bubble.left.and.bubble.right")
-                    Text("Conversation photos (\(data.conversationImages.count))")
+                    Text("Conversation photos (\(data.filteredConversationImages(startDate: startDate, endDate: endDate).count))")
                 }
             }
 
             Toggle(isOn: $options.includeComments) {
                 HStack {
                     Image(systemName: "text.bubble")
-                    Text("Comments (\(data.comments.count))")
+                    Text("Comments (\(data.filteredComments(startDate: startDate, endDate: endDate).count))")
                 }
             }
         }

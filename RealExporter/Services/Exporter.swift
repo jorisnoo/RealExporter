@@ -174,12 +174,12 @@ enum Exporter {
 
         var commentsByPostId: [String: [String]] = [:]
         if options.includeComments {
-            for comment in data.comments {
+            for comment in data.filteredComments(startDate: options.startDate, endDate: options.endDate) {
                 commentsByPostId[comment.postId, default: []].append(comment.content)
             }
         }
 
-        let conversationImages = options.includeConversations ? data.conversationImages : []
+        let conversationImages = options.includeConversations ? data.filteredConversationImages(startDate: options.startDate, endDate: options.endDate) : []
         let total = itemsToExport.count + videosToExport.count + btsToExport.count + conversationImages.count
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd_HHmmss"

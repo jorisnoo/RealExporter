@@ -235,6 +235,8 @@ struct ContentView: View {
                     ExportOptionsView(
                         data: data,
                         options: $viewModel.exportOptions,
+                        startDate: viewModel.startDate,
+                        endDate: viewModel.endDate,
                         onExport: {
                             viewModel.startExport()
                         },
