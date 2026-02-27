@@ -8,7 +8,7 @@ struct ExportOptionsView: View {
     let onExport: () -> Void
     let onBack: () -> Void
 
-    @State private var showPositionOptions = false
+
 
     var body: some View {
         VStack(spacing: 0) {
@@ -82,23 +82,16 @@ struct ExportOptionsView: View {
                 .foregroundColor(.secondary)
 
             if showOverlayPicker {
-                DisclosureGroup(
-                    isExpanded: $showPositionOptions,
-                    content: {
-                        Picker("", selection: $options.overlayPosition) {
-                            ForEach(OverlayPosition.allCases) { position in
-                                Text(position.rawValue).tag(position)
-                            }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Overlay Position")
+                        .font(.subheadline)
+                    Picker("", selection: $options.overlayPosition) {
+                        ForEach(OverlayPosition.allCases) { position in
+                            Text(position.rawValue).tag(position)
                         }
-                        .pickerStyle(.segmented)
-                    },
-                    label: {
-                        Text("Overlay Position: \(options.overlayPosition.rawValue)")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                            .onTapGesture { withAnimation { showPositionOptions.toggle() } }
                     }
-                )
+                    .pickerStyle(.segmented)
+                }
             }
         }
         .animation(.default, value: options.imageStyle)

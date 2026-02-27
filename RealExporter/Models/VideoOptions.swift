@@ -2,7 +2,8 @@ import Foundation
 import CoreGraphics
 
 enum VideoImageContent: String, CaseIterable, Identifiable {
-    case combined = "Combined"
+    case combinedBackMain = "Back + Front Overlay"
+    case combinedFrontMain = "Front + Back Overlay"
     case backOnly = "Back Camera"
     case frontOnly = "Front Camera"
 
@@ -26,7 +27,7 @@ enum VideoResolution: String, CaseIterable, Identifiable {
 }
 
 struct VideoOptions {
-    var imageContent: VideoImageContent = .combined
+    var imageContent: VideoImageContent = .combinedBackMain
     var framesPerSecond: Double = 8
     var resolution: VideoResolution = .original
     var showDateOverlay: Bool = false

@@ -148,7 +148,7 @@ enum VideoGenerator {
             let progress = ExportProgress(
                 current: index + 1,
                 total: total,
-                currentItem: "Frame \(index + 1) of \(total)"
+                currentItem: ""
             )
             await progressHandler(progress)
         }

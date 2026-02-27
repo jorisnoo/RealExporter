@@ -23,6 +23,16 @@ final class AppViewModel {
     var exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
     var exportState: ExportState = .exporting
     var errorMessage: String?
+    var startDate: Date?
+    var endDate: Date?
+
+    var effectiveStartDate: Date {
+        startDate ?? loadedData?.dateRange?.lowerBound ?? Date()
+    }
+
+    var effectiveEndDate: Date {
+        endDate ?? loadedData?.dateRange?.upperBound ?? Date()
+    }
 
     private var exportTask: Task<Void, Never>?
     private var videoTask: Task<Void, Never>?
@@ -35,6 +45,8 @@ final class AppViewModel {
             do {
                 let data = try await DataLoader.loadFromURL(url)
                 self.loadedData = data
+                self.startDate = data.dateRange?.lowerBound
+                self.endDate = data.dateRange?.upperBound
                 self.isLoading = false
                 self.appState = .summary
             } catch {
@@ -86,6 +98,8 @@ final class AppViewModel {
     func startVideoGeneration() {
         guard let data = loadedData else { return }
 
+        videoOptions.startDate = startDate
+        videoOptions.endDate = endDate
         appState = .generatingVideo
         exportState = .exporting
         exportProgress = ExportProgress(current: 0, total: data.uniqueBeRealCount, currentItem: "")
@@ -130,6 +144,8 @@ final class AppViewModel {
         videoOptions = VideoOptions()
         exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
         exportState = .exporting
+        startDate = loadedData?.dateRange?.lowerBound
+        endDate = loadedData?.dateRange?.upperBound
         appState = .hub
     }
 
@@ -143,6 +159,8 @@ final class AppViewModel {
             try? FileManager.default.removeItem(at: tempDir)
         }
         loadedData = nil
+        startDate = nil
+        endDate = nil
         exportOptions = ExportOptions()
         videoOptions = VideoOptions()
         exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
@@ -172,6 +190,15 @@ struct ContentView: View {
                 if let data = viewModel.loadedData {
                     DataSummaryView(
                         data: data,
+                        startDate: Binding(
+                            get: { viewModel.effectiveStartDate },
+                            set: { viewModel.startDate = $0 }
+                        ),
+                        endDate: Binding(
+                            get: { viewModel.effectiveEndDate },
+                            set: { viewModel.endDate = $0 }
+                        ),
+                        dateRange: data.dateRange,
                         onContinue: {
                             viewModel.appState = .hub
                         },
@@ -184,7 +211,11 @@ struct ContentView: View {
             case .hub:
                 if let data = viewModel.loadedData {
                     HubView(
-                        beRealCount: data.uniqueBeRealCount,
+                        beRealCount: VideoGenerator.frameCount(
+                            data: data,
+                            startDate: viewModel.effectiveStartDate,
+                            endDate: viewModel.effectiveEndDate
+                        ),
                         onExportPhotos: {
                             viewModel.appState = .options
                         },
@@ -192,7 +223,7 @@ struct ContentView: View {
                             viewModel.appState = .videoOptions
                         },
                         onBack: {
-                            viewModel.resetToStart()
+                            viewModel.appState = .summary
                         }
                     )
                 }
@@ -229,7 +260,11 @@ struct ContentView: View {
             case .videoOptions:
                 if let data = viewModel.loadedData {
                     VideoOptionsView(
-                        data: data,
+                        beRealCount: VideoGenerator.frameCount(
+                            data: data,
+                            startDate: viewModel.effectiveStartDate,
+                            endDate: viewModel.effectiveEndDate
+                        ),
                         options: $viewModel.videoOptions,
                         onCreateVideo: {
                             viewModel.startVideoGeneration()

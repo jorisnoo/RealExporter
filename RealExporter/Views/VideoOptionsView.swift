@@ -2,25 +2,13 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct VideoOptionsView: View {
-    let data: BeRealExport
+    let beRealCount: Int
     @Binding var options: VideoOptions
     let onCreateVideo: () -> Void
     let onBack: () -> Void
 
-    @State private var showPositionOptions = false
-
-    private var dateRange: ClosedRange<Date> {
-        data.dateRange ?? Date()...Date()
-    }
-
-    private var filteredCount: Int {
-        let start = options.startDate ?? dateRange.lowerBound
-        let end = options.endDate ?? dateRange.upperBound
-        return VideoGenerator.frameCount(data: data, startDate: start, endDate: end)
-    }
-
     private var estimatedDuration: String {
-        let seconds = Double(filteredCount) / options.framesPerSecond
+        let seconds = Double(beRealCount) / options.framesPerSecond
         if seconds < 60 {
             return String(format: "~%.0f seconds", seconds)
         } else {
@@ -38,10 +26,6 @@ struct VideoOptionsView: View {
                         .fontWeight(.bold)
 
                     VStack(alignment: .leading, spacing: 24) {
-                        dateRangeSection
-
-                        Divider()
-
                         contentSection
 
                         Divider()
@@ -82,66 +66,11 @@ struct VideoOptionsView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(filteredCount == 0)
+                .disabled(beRealCount == 0)
             }
             .padding(20)
         }
         .frame(minWidth: 500, minHeight: 500)
-        .onAppear {
-            if options.startDate == nil {
-                options.startDate = dateRange.lowerBound
-            }
-            if options.endDate == nil {
-                options.endDate = dateRange.upperBound
-            }
-        }
-    }
-
-    private var dateRangeSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Date Range", systemImage: "calendar")
-                .font(.headline)
-
-            HStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("From")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    DatePicker(
-                        "",
-                        selection: Binding(
-                            get: { options.startDate ?? dateRange.lowerBound },
-                            set: { options.startDate = $0 }
-                        ),
-                        in: dateRange,
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("To")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    DatePicker(
-                        "",
-                        selection: Binding(
-                            get: { options.endDate ?? dateRange.upperBound },
-                            set: { options.endDate = $0 }
-                        ),
-                        in: dateRange,
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                }
-
-                Spacer()
-            }
-
-            Text("\(filteredCount) BeReals in selected range")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
     }
 
     private static let cornerPositions: [OverlayPosition] = [.topLeft, .topRight, .bottomLeft, .bottomRight]
@@ -158,24 +87,17 @@ struct VideoOptionsView: View {
             }
             .pickerStyle(.segmented)
 
-            if options.imageContent == .combined {
-                DisclosureGroup(
-                    isExpanded: $showPositionOptions,
-                    content: {
-                        Picker("", selection: $options.overlayPosition) {
-                            ForEach(Self.cornerPositions) { position in
-                                Text(position.rawValue).tag(position)
-                            }
+            if options.imageContent == .combinedBackMain || options.imageContent == .combinedFrontMain {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Overlay Position")
+                        .font(.subheadline)
+                    Picker("", selection: $options.overlayPosition) {
+                        ForEach(Self.cornerPositions) { position in
+                            Text(position.rawValue).tag(position)
                         }
-                        .pickerStyle(.segmented)
-                    },
-                    label: {
-                        Text("Overlay Position: \(options.overlayPosition.rawValue)")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                            .onTapGesture { withAnimation { showPositionOptions.toggle() } }
                     }
-                )
+                    .pickerStyle(.segmented)
+                }
             }
         }
         .animation(.default, value: options.imageContent)
@@ -190,8 +112,8 @@ struct VideoOptionsView: View {
                 Text("1")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Slider(value: $options.framesPerSecond, in: 1...10, step: 1)
-                Text("10")
+                Slider(value: $options.framesPerSecond, in: 1...30, step: 1)
+                Text("30")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

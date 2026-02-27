@@ -685,7 +685,7 @@ enum ImageProcessor {
                 throw ImageProcessorError.failedToLoadImage(frontPath?.path ?? "nil")
             }
             rendered = frontImage
-        case .combined:
+        case .combinedBackMain:
             guard let frontPath, let frontImage = loadImage(from: frontPath) else {
                 throw ImageProcessorError.failedToLoadImage(frontPath?.path ?? "nil")
             }
@@ -693,6 +693,14 @@ enum ImageProcessor {
                 ? resolveAutoPosition(background: backImage, overlay: frontImage)
                 : overlayPosition
             rendered = try stitchImages(back: backImage, front: frontImage, overlayPosition: position)
+        case .combinedFrontMain:
+            guard let frontPath, let frontImage = loadImage(from: frontPath) else {
+                throw ImageProcessorError.failedToLoadImage(frontPath?.path ?? "nil")
+            }
+            let position = overlayPosition == .auto
+                ? resolveAutoPosition(background: frontImage, overlay: backImage)
+                : overlayPosition
+            rendered = try stitchImages(back: frontImage, front: backImage, overlayPosition: position)
         }
 
         guard let targetSize, targetSize.width > 0, targetSize.height > 0 else {
