@@ -162,6 +162,17 @@ struct ExportProgressView: View {
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
+
+            if let url = destinationURL {
+                Button("Open in Finder") {
+                    if url.hasDirectoryPath {
+                        NSWorkspace.shared.open(url)
+                    } else {
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    }
+                }
+                .buttonStyle(.bordered)
+            }
         }
         .padding(24)
         .background(
