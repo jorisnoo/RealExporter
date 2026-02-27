@@ -29,6 +29,12 @@
 
 Download the latest release from the [Releases](https://github.com/jorisnoo/RealExporter/releases/latest) page.
 
+### Homebrew
+
+```bash
+brew install --cask jorisnoo/tap/real-exporter
+```
+
 ### Build from Source
 
 ```bash
