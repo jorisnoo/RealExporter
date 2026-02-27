@@ -142,12 +142,10 @@ final class AppViewModel {
         exportTask = nil
         videoTask?.cancel()
         videoTask = nil
-        exportOptions = ExportOptions()
-        videoOptions = VideoOptions()
+        exportOptions.destinationURL = nil
+        videoOptions.destinationURL = nil
         exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
         exportState = .exporting
-        startDate = loadedData?.dateRange?.lowerBound
-        endDate = loadedData?.dateRange?.upperBound
         appState = .hub
     }
 
@@ -163,8 +161,8 @@ final class AppViewModel {
         loadedData = nil
         startDate = nil
         endDate = nil
-        exportOptions = ExportOptions()
-        videoOptions = VideoOptions()
+        exportOptions.destinationURL = nil
+        videoOptions.destinationURL = nil
         exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
         exportState = .exporting
         appState = .selectSource
@@ -257,7 +255,7 @@ struct ContentView: View {
                         viewModel.cancelExport()
                     },
                     onDone: {
-                        viewModel.returnToHub()
+                        viewModel.resetToStart()
                     }
                 )
 
@@ -289,7 +287,7 @@ struct ContentView: View {
                         viewModel.cancelVideoGeneration()
                     },
                     onDone: {
-                        viewModel.returnToHub()
+                        viewModel.resetToStart()
                     }
                 )
             }
