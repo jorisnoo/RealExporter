@@ -2,8 +2,8 @@ import Foundation
 import CoreGraphics
 
 enum VideoImageContent: String, CaseIterable, Identifiable {
-    case combinedBackMain = "Back + Front Overlay"
     case combinedFrontMain = "Front + Back Overlay"
+    case combinedBackMain = "Back + Front Overlay"
     case backOnly = "Back Camera"
     case frontOnly = "Front Camera"
 

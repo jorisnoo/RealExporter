@@ -78,22 +78,23 @@ struct ExportOptionsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
 
             Text(options.imageStyle.description)
                 .font(.caption)
                 .foregroundColor(.secondary)
 
             if showOverlayPicker {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Overlay Position")
-                        .font(.subheadline)
-                    Picker("", selection: $options.overlayPosition) {
-                        ForEach(OverlayPosition.allCases) { position in
-                            Text(position.rawValue).tag(position)
-                        }
+                Label("Overlay Position", systemImage: "pip.enter")
+                    .font(.headline)
+                    .padding(.top, 4)
+                Picker("", selection: $options.overlayPosition) {
+                    ForEach(OverlayPosition.allCases) { position in
+                        Text(position.rawValue).tag(position)
                     }
-                    .pickerStyle(.segmented)
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
             }
         }
         .animation(.default, value: options.imageStyle)
@@ -110,6 +111,7 @@ struct ExportOptionsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
 
             Text(options.folderStructure.description)
                 .font(.caption)
