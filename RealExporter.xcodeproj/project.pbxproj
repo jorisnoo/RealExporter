@@ -28,9 +28,22 @@
 		CF9A00012F5A000100018A6B /* RealExporterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RealExporterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CFB221382F53008100017269 /* Exceptions for "RealExporter" folder in "RealExporter" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CF748EA32F13B17500799E78 /* RealExporter */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CF748EA62F13B17500799E78 /* RealExporter */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CFB221382F53008100017269 /* Exceptions for "RealExporter" folder in "RealExporter" target */,
+			);
 			path = RealExporter;
 			sourceTree = "<group>";
 		};
