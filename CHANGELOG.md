@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0](https://github.com/jorisnoo/RealExporter/releases/tag/v0.2.0) (2026-02-28)
+
+### Features
+
+- remember last import directory in file picker panel ([902302c](https://github.com/jorisnoo/RealExporter/commit/902302c56f8b96487ba5d268f76f0ac405990fa7))
+- filter conversations and comments by date range and redesign date overlay as pill badge ([383ec02](https://github.com/jorisnoo/RealExporter/commit/383ec02814d58a9313f6c82ceb1a6609588d8824))
+- filter exports by date range and default video to front-main layout ([293ac6b](https://github.com/jorisnoo/RealExporter/commit/293ac6bc55ac2053298ade46d859c384ab13f197))
+- add "Open in Finder" button to export completion view ([0bffdfc](https://github.com/jorisnoo/RealExporter/commit/0bffdfc9bfeed67e2733d68a78e70dd3a3c5257f))
+- add year boundary snap points and labels to date range slider ([1a49f47](https://github.com/jorisnoo/RealExporter/commit/1a49f47d1d1248a86e0920b10df385790f0045c7))
+- add date range slider to summary view, support front-main overlay layout, and simplify UI controls ([5bb5ab5](https://github.com/jorisnoo/RealExporter/commit/5bb5ab5fe6901814af95d41847175436ec1ac897))
+- add time-lapse video generation from BeReal photos ([2c90ca0](https://github.com/jorisnoo/RealExporter/commit/2c90ca03724197468d2500ca5a5f6d9f3255e67b))
+
+### Bug Fixes
+
+- improve overlay position picker layout and add labelsHidden to segmented pickers ([40d7b51](https://github.com/jorisnoo/RealExporter/commit/40d7b51f8c51d4fe357ad035f6d74923f2d3cf5f))
+- preserve user options on reset by only clearing destination URLs ([25b7c7e](https://github.com/jorisnoo/RealExporter/commit/25b7c7e0c292d20e146e38360f6b94d25505a773))
+- rename "Back" button to "Start Over" in data summary view ([4d2bb1c](https://github.com/jorisnoo/RealExporter/commit/4d2bb1cf1e5b29d304f67ba71d1dd1f56d186b31))
+
+### Documentation
+
+- add brew install instructions ([23ffe64](https://github.com/jorisnoo/RealExporter/commit/23ffe64ed0e5b7d2b135f0d1c3a36a7fed561a05))
+
+### Continuous Integration
+
+- add automatic Homebrew cask update step to release workflow ([ade73d8](https://github.com/jorisnoo/RealExporter/commit/ade73d8bfcefc7f722e02d229d499376bb8e0e04))
 ## [0.1.2](https://github.com/jorisnoo/RealExporter/releases/tag/v0.1.2) (2026-02-26)
 
 ### Features
