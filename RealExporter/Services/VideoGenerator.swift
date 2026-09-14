@@ -7,6 +7,7 @@ enum VideoGeneratorError: LocalizedError {
     case noDestination
     case noFrames
     case failedToStartWriter(String)
+    case failedToWriteVideo
     case failedToCreatePixelBuffer
     case cancelled
 
@@ -18,6 +19,8 @@ enum VideoGeneratorError: LocalizedError {
             return "No images found to include in the video."
         case .failedToStartWriter(let msg):
             return "Failed to start video writer: \(msg)"
+        case .failedToWriteVideo:
+            return "Failed to write video."
         case .failedToCreatePixelBuffer:
             return "Failed to create pixel buffer for frame."
         case .cancelled:
@@ -65,8 +68,8 @@ enum VideoGenerator {
                 targetSize: targetSize
             )
         }.value
-        let frameWidth = firstFrame.width
-        let frameHeight = firstFrame.height
+        let frameWidth = targetSize.map { Int($0.width) } ?? firstFrame.width
+        let frameHeight = targetSize.map { Int($0.height) } ?? firstFrame.height
 
         // Ensure even dimensions for H.264
         let videoWidth = frameWidth % 2 == 0 ? frameWidth : frameWidth + 1
@@ -78,6 +81,14 @@ enum VideoGenerator {
         }
 
         let writer = try AVAssetWriter(outputURL: destinationURL, fileType: .mp4)
+        defer {
+            if writer.status != .completed {
+                if writer.status == .writing {
+                    writer.cancelWriting()
+                }
+                try? FileManager.default.removeItem(at: destinationURL)
+            }
+        }
 
         let videoSettings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
@@ -128,11 +139,7 @@ enum VideoGenerator {
 
             let presentationTime = CMTime(value: CMTimeValue(index), timescale: CMTimeScale(fps))
 
-            // Wait for writer input to be ready
-            while !writerInput.isReadyForMoreMediaData {
-                try Task.checkCancellation()
-                try await Task.sleep(for: .milliseconds(10))
-            }
+            try await waitUntilReady(writer: writer, input: writerInput)
 
             guard let pixelBuffer = createPixelBuffer(
                 from: rendered,
@@ -143,7 +150,9 @@ enum VideoGenerator {
                 throw VideoGeneratorError.failedToCreatePixelBuffer
             }
 
-            adaptor.append(pixelBuffer, withPresentationTime: presentationTime)
+            guard adaptor.append(pixelBuffer, withPresentationTime: presentationTime) else {
+                throw writer.error ?? VideoGeneratorError.failedToWriteVideo
+            }
 
             let progress = ExportProgress(
                 current: index + 1,
@@ -157,8 +166,19 @@ enum VideoGenerator {
         writerInput.markAsFinished()
         await writer.finishWriting()
 
-        if let error = writer.error {
-            throw error
+        guard writer.status == .completed else {
+            throw writer.error ?? VideoGeneratorError.failedToWriteVideo
+        }
+    }
+
+    static func waitUntilReady(writer: AVAssetWriter, input: AVAssetWriterInput) async throws {
+        while true {
+            try Task.checkCancellation()
+            guard writer.status == .writing else {
+                throw writer.error ?? VideoGeneratorError.failedToWriteVideo
+            }
+            if input.isReadyForMoreMediaData { return }
+            try await Task.sleep(for: .milliseconds(10))
         }
     }
 
@@ -230,15 +250,26 @@ enum VideoGenerator {
             bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue
         ) else { return nil }
 
-        // Clear to black (handles odd-dimension padding)
+        drawFrame(image, in: ctx)
+        return buffer
+    }
+
+    static func drawFrame(_ image: CGImage, in ctx: CGContext) {
+        let width = CGFloat(ctx.width)
+        let height = CGFloat(ctx.height)
         ctx.setFillColor(CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1))
         ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
 
-        // Center the image in the buffer
-        let offsetX = (width - image.width) / 2
-        let offsetY = (height - image.height) / 2
-        ctx.draw(image, in: CGRect(x: offsetX, y: offsetY, width: image.width, height: image.height))
-
-        return buffer
+        // Fit every image to the fixed canvas without cropping or stretching.
+        let scale = min(width / CGFloat(image.width), height / CGFloat(image.height))
+        let fittedWidth = CGFloat(image.width) * scale
+        let fittedHeight = CGFloat(image.height) * scale
+        ctx.interpolationQuality = .high
+        ctx.draw(image, in: CGRect(
+            x: (width - fittedWidth) / 2,
+            y: (height - fittedHeight) / 2,
+            width: fittedWidth,
+            height: fittedHeight
+        ))
     }
 }

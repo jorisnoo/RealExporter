@@ -1,4 +1,8 @@
 import Foundation
+import CoreGraphics
+import ImageIO
+import Testing
+import UniformTypeIdentifiers
 @testable import RealExporter
 
 enum TestFixtures {
@@ -96,7 +100,7 @@ enum TestFixtures {
         posts: [Post] = [],
         memories: [Memory] = [],
         conversationImages: [ConversationImage] = [],
-        comments: [Comment] = [],
+        comments: [RealExporter.Comment] = [],
         baseURL: URL = URL(fileURLWithPath: "/tmp/test"),
         user: User? = nil
     ) -> BeRealExport {
@@ -109,5 +113,26 @@ enum TestFixtures {
             baseURL: baseURL,
             temporaryDirectory: nil
         )
+    }
+}
+
+extension TestFixtures {
+    static func makeImage(width: Int = 80, height: Int = 60) throws -> CGImage {
+        let context = try #require(CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8,
+            bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+        ))
+        context.setFillColor(CGColor(srgbRed: 1, green: 0, blue: 0, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        return try #require(context.makeImage())
+    }
+
+    static func writeImage(_ image: CGImage, to url: URL) throws {
+        let destination = try #require(CGImageDestinationCreateWithURL(
+            url as CFURL, UTType.png.identifier as CFString, 1, nil
+        ))
+        CGImageDestinationAddImage(destination, image, nil)
+        #expect(CGImageDestinationFinalize(destination))
     }
 }

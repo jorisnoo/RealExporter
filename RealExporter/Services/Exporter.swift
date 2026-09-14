@@ -156,21 +156,21 @@ enum Exporter {
                 if let end = rangeEnd, item.item.date > end { return false }
                 return true
             }
-            .sorted { $0.item.date < $1.item.date }
+            .sorted { ($0.item.date, $0.postId) < ($1.item.date, $1.postId) }
         let videosToExport = videoItems.values
             .filter { item in
                 if let start = rangeStart, item.date < start { return false }
                 if let end = rangeEnd, item.date > end { return false }
                 return true
             }
-            .sorted { $0.date < $1.date }
+            .sorted { ($0.date, $0.backPath.path) < ($1.date, $1.backPath.path) }
         let btsToExport = btsItems.values
             .filter { item in
                 if let start = rangeStart, item.date < start { return false }
                 if let end = rangeEnd, item.date > end { return false }
                 return true
             }
-            .sorted { $0.date < $1.date }
+            .sorted { ($0.date, $0.path.path) < ($1.date, $1.path.path) }
 
         var commentsByPostId: [String: [String]] = [:]
         if options.includeComments {
@@ -189,6 +189,15 @@ enum Exporter {
 
         var currentIndex = 0
         var commentsByFolder: [URL: [(filename: String, comments: [String])]] = [:]
+        var nameCounts: [String: Int] = [:]
+
+        // Reserve the whole name family, including separate and combined images.
+        func nextBaseName(for date: Date, suffix: String = "") -> String {
+            let base = "bereal_\(dateFormatter.string(from: date))\(suffix)"
+            nameCounts[base, default: 0] += 1
+            let count = nameCounts[base]!
+            return count == 1 ? base : "\(base)_\(count)"
+        }
 
         for (postId, item) in itemsToExport {
             try Task.checkCancellation()
@@ -198,7 +207,7 @@ enum Exporter {
                 for: item.date,
                 folderStructure: folderStructure,
                 destinationURL: destinationURL,
-                dateFormatter: dateFormatter
+                baseName: nextBaseName(for: item.date)
             )
 
             let metadata = ExportMetadata(
@@ -224,7 +233,7 @@ enum Exporter {
             let postIdFilename = URL(fileURLWithPath: postId).lastPathComponent.replacingOccurrences(of: ".webp", with: "")
             if let postComments = commentsByPostId[postIdFilename], !postComments.isEmpty {
                 let folder = outputPath.deletingLastPathComponent()
-                let filename = "bereal_\(dateFormatter.string(from: item.date))"
+                let filename = outputPath.deletingPathExtension().lastPathComponent
                 commentsByFolder[folder, default: []].append((filename: filename, comments: postComments))
             }
 
@@ -247,7 +256,7 @@ enum Exporter {
                 destinationURL: destinationURL
             )
 
-            let baseName = "bereal_\(dateFormatter.string(from: video.date))"
+            let baseName = nextBaseName(for: video.date)
             let backOutput = outputDirectory.appendingPathComponent("\(baseName)_back.\(video.backExt)")
             let frontOutput = outputDirectory.appendingPathComponent("\(baseName)_front.\(video.frontExt)")
 
@@ -277,7 +286,7 @@ enum Exporter {
                 destinationURL: destinationURL
             )
 
-            let baseName = "bereal_\(dateFormatter.string(from: bts.date))_bts.\(bts.ext)"
+            let baseName = "\(nextBaseName(for: bts.date, suffix: "_bts")).\(bts.ext)"
             let outputPath = outputDirectory.appendingPathComponent(baseName)
 
             if !fileManager.fileExists(atPath: outputPath.path) {
@@ -383,14 +392,14 @@ enum Exporter {
         for date: Date,
         folderStructure: FolderStructure,
         destinationURL: URL,
-        dateFormatter: DateFormatter
+        baseName: String
     ) throws -> URL {
         let outputDirectory = try buildOutputDirectory(
             for: date,
             folderStructure: folderStructure,
             destinationURL: destinationURL
         )
-        let filename = "bereal_\(dateFormatter.string(from: date)).jpg"
+        let filename = "\(baseName).jpg"
         return outputDirectory.appendingPathComponent(filename)
     }
 }

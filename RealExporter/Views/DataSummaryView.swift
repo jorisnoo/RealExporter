@@ -147,10 +147,11 @@ struct DataSummaryView: View {
         return range.lowerBound.addingTimeInterval(total * Double(position))
     }
 
-    private func yearBoundaries(in range: ClosedRange<Date>) -> [(position: CGFloat, year: Int)] {
+    func yearBoundaries(in range: ClosedRange<Date>) -> [(position: CGFloat, year: Int)] {
         let cal = Calendar.current
         let startYear = cal.component(.year, from: range.lowerBound)
         let endYear = cal.component(.year, from: range.upperBound)
+        guard startYear < endYear else { return [] }
         var result: [(position: CGFloat, year: Int)] = []
         for year in (startYear + 1)...endYear {
             var comps = DateComponents()
