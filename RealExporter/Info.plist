@@ -6,9 +6,5 @@
 	<string>A-EU-4111441577</string>
 	<key>AptabaseHost</key>
 	<string>https://aptabase-endpoint-h42wr.bunny.run</string>
-	<key>GHRepositoryOwner</key>
-	<string>jorisnoo</string>
-	<key>GHRepositoryName</key>
-	<string>RealExporter</string>
 </dict>
 </plist>

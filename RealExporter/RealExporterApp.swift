@@ -25,30 +25,9 @@ struct RealExporterApp: App {
         .commands {
             #if !APP_STORE
             CommandGroup(after: .appInfo) {
-                UpdateMenuCommands(updater: appDelegate.updater, checkForUpdates: appDelegate.checkForUpdates)
+                AppUpdateMenu(controller: appDelegate.updates)
             }
             #endif
         }
     }
 }
-
-#if !APP_STORE
-struct UpdateMenuCommands: View {
-    @ObservedObject var updater: AppUpdater
-    var checkForUpdates: () -> Void
-
-    var body: some View {
-        Button("Check for Updates...") {
-            checkForUpdates()
-        }
-
-        if case .downloaded(_, _, let bundle) = updater.state {
-            Button("Restart and Update") {
-                Task {
-                    try await updater.installThrowing(bundle)
-                }
-            }
-        }
-    }
-}
-#endif
