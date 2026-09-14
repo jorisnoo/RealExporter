@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1](https://github.com/jorisnoo/RealExporter/releases/tag/v0.2.1) (2026-09-14)
+
+### Chores
+
+- upgrade AppUpdater to 4.0.0 and simplify update handling ([f2a49c0](https://github.com/jorisnoo/RealExporter/commit/f2a49c00750eb170ca445a1316b55ed3b9a17486))
+- remove asset catalog JSON files and add Info.plist build exception ([2759bdf](https://github.com/jorisnoo/RealExporter/commit/2759bdf9b76b05ec4e35082045b8c6106887e6a9))
 ## [0.2.0](https://github.com/jorisnoo/RealExporter/releases/tag/v0.2.0) (2026-02-28)
 
 ### Features
