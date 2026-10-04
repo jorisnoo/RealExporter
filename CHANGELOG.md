@@ -2,13 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.1](https://github.com/jorisnoo/RealExporter/releases/tag/v0.2.1) (2026-09-14)
+## [0.2.1](https://github.com/jorisnoo/RealExporter/releases/tag/0.2.1) (2026-09-14)
 
 ### Chores
 
 - upgrade AppUpdater to 4.0.0 and simplify update handling ([f2a49c0](https://github.com/jorisnoo/RealExporter/commit/f2a49c00750eb170ca445a1316b55ed3b9a17486))
 - remove asset catalog JSON files and add Info.plist build exception ([2759bdf](https://github.com/jorisnoo/RealExporter/commit/2759bdf9b76b05ec4e35082045b8c6106887e6a9))
-## [0.2.0](https://github.com/jorisnoo/RealExporter/releases/tag/v0.2.0) (2026-02-28)
+## [0.2.0](https://github.com/jorisnoo/RealExporter/releases/tag/0.2.0) (2026-02-28)
 
 ### Features
 
@@ -33,7 +33,7 @@ All notable changes to this project will be documented in this file.
 ### Continuous Integration
 
 - add automatic Homebrew cask update step to release workflow ([ade73d8](https://github.com/jorisnoo/RealExporter/commit/ade73d8bfcefc7f722e02d229d499376bb8e0e04))
-## [0.1.2](https://github.com/jorisnoo/RealExporter/releases/tag/v0.1.2) (2026-02-26)
+## [0.1.2](https://github.com/jorisnoo/RealExporter/releases/tag/0.1.2) (2026-02-26)
 
 ### Features
 
@@ -42,7 +42,7 @@ All notable changes to this project will be documented in this file.
 ### Code Refactoring
 
 - remove unused border drawing from image overlay ([ec3111f](https://github.com/jorisnoo/RealExporter/commit/ec3111f2003086fcc58bf5a3a58d9644d8df0cbc))
-## [0.1.1](https://github.com/jorisnoo/RealExporter/releases/tag/v0.1.1) (2026-02-25)
+## [0.1.1](https://github.com/jorisnoo/RealExporter/releases/tag/0.1.1) (2026-02-25)
 
 ### Features
 
@@ -54,7 +54,7 @@ All notable changes to this project will be documented in this file.
 
 - disable App Sandbox for non-App Store builds ([b3b2711](https://github.com/jorisnoo/RealExporter/commit/b3b2711e584ae903a82e467d218113ab9fb9bae3))
 - add apta key ([07994a4](https://github.com/jorisnoo/RealExporter/commit/07994a4ac311d1a9206d0a33f50f6f02723311ed))
-## [0.1.0](https://github.com/jorisnoo/RealExporter/releases/tag/v0.1.0) (2026-02-25)
+## [0.1.0](https://github.com/jorisnoo/RealExporter/releases/tag/0.1.0) (2026-02-25)
 
 ### Features
 

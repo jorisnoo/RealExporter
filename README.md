@@ -67,3 +67,7 @@ BeReal must respond within 45 days.
 They will send you a link in the app: **Help** > **Contact Us** > **Messages**.
 
 You'll receive a ZIP file containing your photos and metadata — that's the file you load into RealExporter.
+
+## Maintainer releases
+
+See [RELEASING.md](RELEASING.md) for versioning, changelog entries and the release command.

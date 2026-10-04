@@ -1,0 +1,21 @@
+{
+  "branch": "main",
+  "sign_tag": true,
+  "version_files": [],
+  "checks": [
+    [
+      "xcodebuild",
+      "-project",
+      "RealExporter.xcodeproj",
+      "-scheme",
+      "RealExporter",
+      "-configuration",
+      "Debug",
+      "-derivedDataPath",
+      "/tmp/RealExporter-release-check",
+      "CODE_SIGNING_ALLOWED=NO",
+      "build"
+    ]
+  ],
+  "stable_only": true
+}
