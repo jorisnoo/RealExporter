@@ -25,7 +25,8 @@ enum ImageProcessorError: LocalizedError {
 }
 
 struct ExportMetadata {
-    let date: Date
+    /// Nil when the capture date is unknown; no date is written then.
+    let date: Date?
     let location: Location?
     let caption: String?
 }
@@ -156,7 +157,7 @@ enum ImageProcessor {
             throw ImageProcessorError.failedToLoadImage(source.path)
         }
         let metadata = ExportMetadata(
-            date: date ?? Date(),
+            date: date,
             location: nil,
             caption: nil
         )
@@ -580,15 +581,22 @@ enum ImageProcessor {
         let padding = width / 30
         let cornerRadius = overlayWidth / 12
 
-        guard let context = CGContext(
-            data: nil,
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bytesPerRow: 0,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else {
+        // Keep the background's colour space (BeReal photos are often Display P3)
+        // so combined images match the separate ones.
+        let sourceSpace = back.colorSpace.flatMap { $0.model == .rgb ? $0 : nil }
+        let fallbackSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        func makeContext(_ space: CGColorSpace) -> CGContext? {
+            CGContext(
+                data: nil,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: space,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            )
+        }
+        guard let context = sourceSpace.flatMap(makeContext) ?? makeContext(fallbackSpace) else {
             throw ImageProcessorError.failedToCreateContext
         }
 
@@ -839,13 +847,17 @@ enum ImageProcessor {
         var exifDict: [String: Any] = [:]
         var tiffDict: [String: Any] = [:]
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy:MM:dd HH:mm:ss"
-        let dateString = formatter.string(from: metadata.date)
+        if let date = metadata.date {
+            let dateString = ExportDateFormat.exifFormatter().string(from: date)
+            let offset = ExportDateFormat.exifOffset(for: date)
 
-        exifDict[kCGImagePropertyExifDateTimeOriginal as String] = dateString
-        exifDict[kCGImagePropertyExifDateTimeDigitized as String] = dateString
-        tiffDict[kCGImagePropertyTIFFDateTime as String] = dateString
+            exifDict[kCGImagePropertyExifDateTimeOriginal as String] = dateString
+            exifDict[kCGImagePropertyExifDateTimeDigitized as String] = dateString
+            exifDict[kCGImagePropertyExifOffsetTimeOriginal as String] = offset
+            exifDict[kCGImagePropertyExifOffsetTimeDigitized as String] = offset
+            exifDict[kCGImagePropertyExifOffsetTime as String] = offset
+            tiffDict[kCGImagePropertyTIFFDateTime as String] = dateString
+        }
 
         if let caption = metadata.caption, !caption.isEmpty {
             exifDict[kCGImagePropertyExifUserComment as String] = caption

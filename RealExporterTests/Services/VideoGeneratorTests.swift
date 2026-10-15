@@ -92,8 +92,17 @@ struct VideoGeneratorTests {
         let asset = AVURLAsset(url: options.destinationURL!)
         let tracks = try await asset.loadTracks(withMediaType: .video)
         let track = try #require(tracks.first)
-        #expect(try await track.load(.naturalSize) == (resolution.size ?? CGSize(width: 60, height: 80)))
-        #expect(try await asset.load(.duration).seconds > 0)
+        let firstFrameSize = CGSize(width: 60, height: 80)
+        #expect(try await track.load(.naturalSize) == (resolution.size(for: firstFrameSize) ?? firstFrameSize))
+        // Two frames at the default speed, the last one shown for its full duration.
+        let duration = try await asset.load(.duration).seconds
+        #expect(abs(duration - 2 / options.framesPerSecond) < 0.01)
+    }
+
+    @Test func resolutionKeepsOrientationAndAspectRatio() {
+        #expect(VideoResolution.original.size(for: CGSize(width: 1500, height: 2000)) == nil)
+        #expect(VideoResolution.hd1080.size(for: CGSize(width: 1500, height: 2000)) == CGSize(width: 1080, height: 1440))
+        #expect(VideoResolution.hd720.size(for: CGSize(width: 2000, height: 1500)) == CGSize(width: 960, height: 720))
     }
 
     @Test func renderingFailureRemovesIncompleteVideo() async throws {

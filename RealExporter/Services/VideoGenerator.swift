@@ -58,16 +58,16 @@ enum VideoGenerator {
         let firstFrontPath = frames[0].frontPath
         let imageContent = options.imageContent
         let overlayPos = options.overlayPosition
-        let targetSize = options.resolution.size
         let firstFrame = try await Task.detached {
             try ImageProcessor.renderFrame(
                 backPath: firstBackPath,
                 frontPath: firstFrontPath,
                 imageContent: imageContent,
                 overlayPosition: overlayPos,
-                targetSize: targetSize
+                targetSize: nil
             )
         }.value
+        let targetSize = options.resolution.size(for: CGSize(width: firstFrame.width, height: firstFrame.height))
         let frameWidth = targetSize.map { Int($0.width) } ?? firstFrame.width
         let frameHeight = targetSize.map { Int($0.height) } ?? firstFrame.height
 
@@ -162,8 +162,10 @@ enum VideoGenerator {
             await progressHandler(progress)
         }
 
-        // Finish writing
+        // Finish writing. Ending the session after the last frame's slot gives
+        // that frame its full duration instead of none.
         writerInput.markAsFinished()
+        writer.endSession(atSourceTime: CMTime(value: CMTimeValue(frames.count), timescale: CMTimeScale(fps)))
         await writer.finishWriting()
 
         guard writer.status == .completed else {

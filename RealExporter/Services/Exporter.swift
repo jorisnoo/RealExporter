@@ -11,10 +11,18 @@ struct ExportProgress: Sendable {
     }
 }
 
+/// What an export actually wrote, for the completion message.
+struct ExportResult: Sendable, Equatable {
+    var beReals = 0
+    var videos = 0
+    var chatPhotos = 0
+}
+
 enum ExporterError: LocalizedError {
     case noDestination
     case failedToCreateDirectory
     case cancelled
+    case nothingToExport
 
     var errorDescription: String? {
         switch self {
@@ -24,16 +32,19 @@ enum ExporterError: LocalizedError {
             return "Failed to create output directory."
         case .cancelled:
             return "Export was cancelled."
+        case .nothingToExport:
+            return "There are no BeReals in the selected date range."
         }
     }
 }
 
 enum Exporter {
+    @discardableResult
     static func export(
         data: BeRealExport,
         options: ExportOptions,
         progressHandler: @escaping @MainActor (ExportProgress) -> Void
-    ) async throws {
+    ) async throws -> ExportResult {
         guard let destinationURL = options.destinationURL else {
             throw ExporterError.noDestination
         }
@@ -82,7 +93,7 @@ enum Exporter {
             }
         }
 
-        var videoItems: [String: (date: Date, backPath: URL, frontPath: URL, backExt: String, frontExt: String, location: Location?, caption: String?)] = [:]
+        var videoItems: [String: (date: Date, postId: String, backPath: URL, frontPath: URL, backExt: String, frontExt: String, location: Location?, caption: String?)] = [:]
 
         for post in data.posts where post.primary.isVideo || post.secondary.isVideo {
             let backPath = post.primary.localPath(relativeTo: data.baseURL)
@@ -96,6 +107,7 @@ enum Exporter {
             let key = post.primary.path
             videoItems[key] = (
                 date: post.takenAt,
+                postId: post.primary.postId,
                 backPath: backPath,
                 frontPath: frontPath,
                 backExt: backPath.pathExtension,
@@ -118,6 +130,7 @@ enum Exporter {
             if videoItems[key] == nil {
                 videoItems[key] = (
                     date: memory.takenTime,
+                    postId: memory.backImage.postId,
                     backPath: backPath,
                     frontPath: frontPath,
                     backExt: backPath.pathExtension,
@@ -179,17 +192,37 @@ enum Exporter {
             }
         }
 
-        let conversationImages = options.includeConversations ? data.filteredConversationImages(startDate: options.startDate, endDate: options.endDate) : []
+        let conversationImages = options.includeConversations
+            ? data.filteredConversationImages(startDate: options.startDate, endDate: options.endDate)
+                .sorted { ($0.date ?? .distantPast, $0.id) < ($1.date ?? .distantPast, $1.id) }
+            : []
         let total = itemsToExport.count + videosToExport.count + btsToExport.count + conversationImages.count
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd_HHmmss"
+        guard total > 0 else {
+            throw ExporterError.nothingToExport
+        }
+
+        let dateFormatter = ExportDateFormat.fileNameFormatter()
         let imageStyle = options.imageStyle
         let overlayPosition = options.overlayPosition
         let folderStructure = options.folderStructure
 
         var currentIndex = 0
-        var commentsByFolder: [URL: [(filename: String, comments: [String])]] = [:]
+        var result = ExportResult()
+        var commentsByFolder: [URL: [CommentEntry]] = [:]
         var nameCounts: [String: Int] = [:]
+
+        // Keep comments gathered so far if the export is cancelled or fails.
+        var commentsWritten = false
+        defer {
+            if !commentsWritten {
+                try? writeComments(commentsByFolder)
+            }
+        }
+
+        func collectComments(forPostId postId: String, filename: String, in folder: URL) {
+            guard let postComments = commentsByPostId[postId], !postComments.isEmpty else { return }
+            commentsByFolder[folder, default: []].append(CommentEntry(filename: filename, comments: postComments))
+        }
 
         // Reserve the whole name family, including separate and combined images.
         func nextBaseName(for date: Date, suffix: String = "") -> String {
@@ -230,13 +263,13 @@ enum Exporter {
                 )
             }.value
 
-            let postIdFilename = URL(fileURLWithPath: postId).lastPathComponent.replacingOccurrences(of: ".webp", with: "")
-            if let postComments = commentsByPostId[postIdFilename], !postComments.isEmpty {
-                let folder = outputPath.deletingLastPathComponent()
-                let filename = outputPath.deletingPathExtension().lastPathComponent
-                commentsByFolder[folder, default: []].append((filename: filename, comments: postComments))
-            }
+            collectComments(
+                forPostId: MediaReference.postId(forPath: postId),
+                filename: outputPath.deletingPathExtension().lastPathComponent,
+                in: outputPath.deletingLastPathComponent()
+            )
 
+            result.beReals += 1
             currentIndex += 1
             let progress = ExportProgress(
                 current: currentIndex,
@@ -267,6 +300,9 @@ enum Exporter {
                 try fileManager.copyItem(at: video.frontPath, to: frontOutput)
             }
 
+            collectComments(forPostId: video.postId, filename: baseName, in: outputDirectory)
+
+            result.videos += 1
             currentIndex += 1
             let progress = ExportProgress(
                 current: currentIndex,
@@ -293,6 +329,7 @@ enum Exporter {
                 try fileManager.copyItem(at: bts.path, to: outputPath)
             }
 
+            result.videos += 1
             currentIndex += 1
             let progress = ExportProgress(
                 current: currentIndex,
@@ -312,24 +349,21 @@ enum Exporter {
                 try Task.checkCancellation()
                 await Task.yield()
 
-                let outputFilename: String
-                if let date = image.date {
-                    outputFilename = "chat_\(dateFormatter.string(from: date))_\(image.id.suffix(8)).jpg"
-                } else {
-                    let name = (image.filename as NSString).deletingPathExtension
-                    outputFilename = "\(name).jpg"
-                }
+                let base = image.date.map { "chat_\(dateFormatter.string(from: $0))" }
+                    ?? "chat_\(image.conversationId)_\((image.filename as NSString).deletingPathExtension)"
+                nameCounts[base, default: 0] += 1
+                let count = nameCounts[base]!
+                let outputFilename = (count == 1 ? base : "\(base)_\(count)") + ".jpg"
 
                 let outputPath = conversationsFolder.appendingPathComponent(outputFilename)
                 let sourceURL = image.url
                 let imageDate = image.date
 
-                if !fileManager.fileExists(atPath: outputPath.path) {
-                    try await Task.detached {
-                        try ImageProcessor.convertToJPEG(source: sourceURL, destination: outputPath, date: imageDate)
-                    }.value
-                }
+                try await Task.detached {
+                    try ImageProcessor.convertToJPEG(source: sourceURL, destination: outputPath, date: imageDate)
+                }.value
 
+                result.chatPhotos += 1
                 currentIndex += 1
                 let progress = ExportProgress(
                     current: currentIndex,
@@ -340,20 +374,30 @@ enum Exporter {
             }
         }
 
-        if options.includeComments && !commentsByFolder.isEmpty {
-            for (folder, items) in commentsByFolder {
-                var content = ""
-                for item in items.sorted(by: { $0.filename < $1.filename }) {
-                    content += "\(item.filename):\n"
-                    for comment in item.comments {
-                        content += "  - \(comment)\n"
-                    }
-                    content += "\n"
-                }
+        commentsWritten = true
+        try writeComments(commentsByFolder)
 
-                let commentsPath = folder.appendingPathComponent("comments.txt")
-                try content.write(to: commentsPath, atomically: true, encoding: .utf8)
+        return result
+    }
+
+    private struct CommentEntry {
+        let filename: String
+        let comments: [String]
+    }
+
+    private static func writeComments(_ commentsByFolder: [URL: [CommentEntry]]) throws {
+        for (folder, items) in commentsByFolder {
+            var content = ""
+            for item in items.sorted(by: { $0.filename < $1.filename }) {
+                content += "\(item.filename):\n"
+                for comment in item.comments {
+                    content += "  - \(comment)\n"
+                }
+                content += "\n"
             }
+
+            let commentsPath = folder.appendingPathComponent("comments.txt")
+            try content.write(to: commentsPath, atomically: true, encoding: .utf8)
         }
     }
 
@@ -367,7 +411,7 @@ enum Exporter {
         let outputDirectory: URL
         switch folderStructure {
         case .byDate:
-            let calendar = Calendar.current
+            let calendar = ExportDateFormat.calendar
             let year = calendar.component(.year, from: date)
             let month = String(format: "%02d", calendar.component(.month, from: date))
             let day = String(format: "%02d", calendar.component(.day, from: date))
