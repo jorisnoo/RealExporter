@@ -10,7 +10,7 @@ enum ExportState {
 struct ProgressContext {
     let activeTitle: String
     let completedTitle: String
-    let completedMessage: (ExportProgress, Int) -> String
+    let completedMessage: (ExportResult) -> String
     let cancelledMessage: (ExportProgress) -> String
     let failedTitle: String
     let itemNoun: String
@@ -18,20 +18,30 @@ struct ProgressContext {
     static let photoExport = ProgressContext(
         activeTitle: "Exporting...",
         completedTitle: "Export Complete",
-        completedMessage: { progress, videoCount in
-            "Successfully exported \(progress.total) images" + (videoCount > 0 ? " and \(videoCount) videos" : "")
+        completedMessage: { result in
+            let parts = [
+                ProgressContext.countLabel(result.beReals, "BeReal", "BeReals"),
+                ProgressContext.countLabel(result.videos, "video", "videos"),
+                ProgressContext.countLabel(result.chatPhotos, "chat photo", "chat photos"),
+            ].compactMap { $0 }
+            return parts.isEmpty ? "Export finished" : "Exported " + ListFormatter.localizedString(byJoining: parts)
         },
         cancelledMessage: { progress in
-            "\(progress.current) of \(progress.total) images were exported before cancellation"
+            "\(progress.current) of \(progress.total) items were exported before cancellation"
         },
         failedTitle: "Export Failed",
-        itemNoun: "images"
+        itemNoun: "items"
     )
+
+    private static func countLabel(_ count: Int, _ singular: String, _ plural: String) -> String? {
+        guard count > 0 else { return nil }
+        return "\(count) \(count == 1 ? singular : plural)"
+    }
 
     static let videoGeneration = ProgressContext(
         activeTitle: "Generating Video...",
         completedTitle: "Video Complete",
-        completedMessage: { _, _ in "Video saved successfully" },
+        completedMessage: { _ in "Video saved successfully" },
         cancelledMessage: { progress in
             "\(progress.current) of \(progress.total) frames were processed before cancellation"
         },
@@ -44,9 +54,10 @@ struct ExportProgressView: View {
     let progress: ExportProgress
     let state: ExportState
     let destinationURL: URL?
-    var videoCount: Int = 0
+    var result = ExportResult()
     var context: ProgressContext = .photoExport
     let onCancel: () -> Void
+    let onBack: () -> Void
     let onDone: () -> Void
 
     var body: some View {
@@ -126,8 +137,9 @@ struct ExportProgressView: View {
                 .font(.system(size: 64))
                 .foregroundColor(.green)
 
-            Text(context.completedMessage(progress, videoCount))
+            Text(context.completedMessage(result))
                 .font(.headline)
+                .multilineTextAlignment(.center)
 
             if let url = destinationURL {
                 Button("Open in Finder") {
@@ -204,16 +216,24 @@ struct ExportProgressView: View {
 
     private var bottomButtons: some View {
         HStack {
-            Spacer()
-
             switch state {
             case .exporting:
+                Spacer()
+
                 Button("Cancel") {
                     onCancel()
                 }
                 .buttonStyle(.bordered)
 
             case .completed, .cancelled, .failed:
+                // Keeps the loaded data so another export doesn't need a re-import.
+                Button("Back") {
+                    onBack()
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+
                 Button("Done") {
                     onDone()
                 }

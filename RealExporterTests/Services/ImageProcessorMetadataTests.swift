@@ -21,6 +21,30 @@ struct ImageProcessorMetadataTests {
         #expect(parts[1].contains(":"))
     }
 
+    @Test func dateUsesGregorianYearAndIncludesOffset() throws {
+        let date = Date(timeIntervalSince1970: 1_705_312_800) // 15 Jan 2024
+        let props = ImageProcessor.buildExifProperties(metadata: ExportMetadata(date: date, location: nil, caption: nil))
+        let exif = try #require(props[kCGImagePropertyExifDictionary as String] as? [String: Any])
+        let dateString = try #require(exif[kCGImagePropertyExifDateTimeOriginal as String] as? String)
+        #expect(dateString.hasPrefix("2024:01:1"))
+        let offset = try #require(exif[kCGImagePropertyExifOffsetTimeOriginal as String] as? String)
+        #expect(offset.wholeMatch(of: /[+-]\d{2}:\d{2}/) != nil)
+    }
+
+    @Test func missingDateOmitsDateFields() {
+        let props = ImageProcessor.buildExifProperties(metadata: ExportMetadata(date: nil, location: nil, caption: nil))
+        let exif = props[kCGImagePropertyExifDictionary as String] as? [String: Any]
+        let tiff = props[kCGImagePropertyTIFFDictionary as String] as? [String: Any]
+        #expect(exif?[kCGImagePropertyExifDateTimeOriginal as String] == nil)
+        #expect(tiff?[kCGImagePropertyTIFFDateTime as String] == nil)
+    }
+
+    @Test(arguments: [(0, "+00:00"), (19_800, "+05:30"), (-12_600, "-03:30")])
+    func exifOffsetFormatting(seconds: Int, expected: String) throws {
+        let zone = try #require(TimeZone(secondsFromGMT: seconds))
+        #expect(ExportDateFormat.exifOffset(for: Date(), in: zone) == expected)
+    }
+
     // MARK: - GPS coordinates
 
     @Test func gpsNorthEastCoordinates() {

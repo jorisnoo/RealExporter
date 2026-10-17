@@ -17,12 +17,22 @@ enum VideoResolution: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var size: CGSize? {
+    /// Length of the frame's shorter side, or nil to keep the photos' size.
+    var shortSide: Int? {
         switch self {
         case .original: return nil
-        case .hd1080: return CGSize(width: 1920, height: 1080)
-        case .hd720: return CGSize(width: 1280, height: 720)
+        case .hd1080: return 1080
+        case .hd720: return 720
         }
+    }
+
+    /// Output size for photos of `sourceSize`, keeping their orientation and
+    /// aspect ratio so portrait BeReals aren't letterboxed into a landscape frame.
+    func size(for sourceSize: CGSize) -> CGSize? {
+        guard let shortSide, sourceSize.width > 0, sourceSize.height > 0 else { return nil }
+        let scale = CGFloat(shortSide) / min(sourceSize.width, sourceSize.height)
+        func even(_ value: CGFloat) -> CGFloat { CGFloat(Int((value * scale).rounded()) / 2 * 2) }
+        return CGSize(width: even(sourceSize.width), height: even(sourceSize.height))
     }
 }
 

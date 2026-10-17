@@ -33,6 +33,15 @@ enum DataLoaderError: LocalizedError {
 enum DataLoader {
     private static let fileManager = FileManager.default
 
+    /// Parent of every extracted ZIP, so leftovers can be removed in one go.
+    static let extractionRoot = FileManager.default.temporaryDirectory
+        .appendingPathComponent("RealExporter-Extracted", isDirectory: true)
+
+    /// Deletes extracted archives, e.g. on launch after a crash and on quit.
+    static func removeExtractedArchives() {
+        try? fileManager.removeItem(at: extractionRoot)
+    }
+
     static func loadFromURL(_ url: URL) async throws -> BeRealExport {
         let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
 
@@ -51,13 +60,17 @@ enum DataLoader {
     }
 
     static func loadFromZip(_ zipURL: URL) async throws -> BeRealExport {
-        let tempDirectory = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let tempDirectory = extractionRoot.appendingPathComponent(UUID().uuidString)
         try fileManager.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
 
-        try await extractZip(zipURL, to: tempDirectory)
-
-        let dataFolderURL = try findDataFolder(in: tempDirectory)
-        return try await parseDataFolder(dataFolderURL, temporaryDirectory: tempDirectory)
+        do {
+            try await extractZip(zipURL, to: tempDirectory)
+            let dataFolderURL = try findDataFolder(in: tempDirectory)
+            return try await parseDataFolder(dataFolderURL, temporaryDirectory: tempDirectory)
+        } catch {
+            try? fileManager.removeItem(at: tempDirectory)
+            throw error
+        }
     }
 
     private static func findDataFolder(in directory: URL) throws -> URL {

@@ -16,6 +16,15 @@ struct MediaReference: Codable {
         URL(fileURLWithPath: path).lastPathComponent
     }
 
+    /// The ID comments use to refer to the post this media belongs to.
+    var postId: String {
+        Self.postId(forPath: path)
+    }
+
+    static func postId(forPath path: String) -> String {
+        URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+    }
+
     func localPath(relativeTo baseURL: URL) -> URL {
         let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
 

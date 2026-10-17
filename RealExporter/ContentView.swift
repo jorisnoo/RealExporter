@@ -22,6 +22,7 @@ final class AppViewModel {
     var videoOptions = VideoOptions()
     var exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
     var exportState: ExportState = .exporting
+    var exportResult = ExportResult()
     var errorMessage: String?
     var startDate: Date?
     var endDate: Date?
@@ -38,6 +39,8 @@ final class AppViewModel {
     private var videoTask: Task<Void, Never>?
 
     func loadData(from url: URL) {
+        // A second drop while unzipping would orphan the first extraction.
+        guard !isLoading else { return }
         isLoading = true
         appState = .loading
 
@@ -65,20 +68,21 @@ final class AppViewModel {
         exportOptions.endDate = endDate
         appState = .exporting
         exportState = .exporting
-        exportProgress = ExportProgress(current: 0, total: data.uniqueBeRealCount, currentItem: "")
+        exportResult = ExportResult()
+        exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
 
         Analytics.exportStarted(count: data.uniqueBeRealCount)
 
         exportTask = Task {
             do {
-                try await Exporter.export(
+                self.exportResult = try await Exporter.export(
                     data: data,
                     options: exportOptions
                 ) { progress in
                     self.exportProgress = progress
                 }
                 Analytics.exportCompleted(
-                    count: data.uniqueBeRealCount,
+                    count: self.exportResult.beReals,
                     imageStyle: self.exportOptions.imageStyle.rawValue,
                     folderStructure: self.exportOptions.folderStructure.rawValue
                 )
@@ -104,7 +108,7 @@ final class AppViewModel {
         videoOptions.endDate = endDate
         appState = .generatingVideo
         exportState = .exporting
-        exportProgress = ExportProgress(current: 0, total: data.uniqueBeRealCount, currentItem: "")
+        exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
 
         Analytics.videoStarted(count: data.uniqueBeRealCount)
 
@@ -249,10 +253,13 @@ struct ContentView: View {
                     progress: viewModel.exportProgress,
                     state: viewModel.exportState,
                     destinationURL: viewModel.exportOptions.destinationURL,
-                    videoCount: viewModel.loadedData?.uniqueVideoCount ?? 0,
+                    result: viewModel.exportResult,
                     context: .photoExport,
                     onCancel: {
                         viewModel.cancelExport()
+                    },
+                    onBack: {
+                        viewModel.returnToHub()
                     },
                     onDone: {
                         viewModel.resetToStart()
@@ -285,6 +292,9 @@ struct ContentView: View {
                     context: .videoGeneration,
                     onCancel: {
                         viewModel.cancelVideoGeneration()
+                    },
+                    onBack: {
+                        viewModel.returnToHub()
                     },
                     onDone: {
                         viewModel.resetToStart()
