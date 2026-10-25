@@ -3,7 +3,7 @@ import Foundation
 /// Dates written into file names, folder paths and EXIF must not follow the
 /// user's calendar or locale (e.g. Buddhist or Japanese years), or Photos and
 /// other tools will misread them.
-enum ExportDateFormat {
+nonisolated enum ExportDateFormat {
     static var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current

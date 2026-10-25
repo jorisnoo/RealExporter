@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import CoreText
 import ImageIO
 import UniformTypeIdentifiers
 import Vision
@@ -31,7 +32,7 @@ struct ExportMetadata {
     let caption: String?
 }
 
-enum ImageProcessor {
+nonisolated enum ImageProcessor {
     static func processAndSave(
         backPath: URL,
         frontPath: URL,

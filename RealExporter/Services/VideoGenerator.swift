@@ -159,7 +159,7 @@ enum VideoGenerator {
                 total: total,
                 currentItem: ""
             )
-            await progressHandler(progress)
+            progressHandler(progress)
         }
 
         // Finish writing. Ending the session after the last frame's slot gives

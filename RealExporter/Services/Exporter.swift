@@ -276,7 +276,7 @@ enum Exporter {
                 total: total,
                 currentItem: outputPath.lastPathComponent
             )
-            await progressHandler(progress)
+            progressHandler(progress)
         }
 
         for video in videosToExport {
@@ -309,7 +309,7 @@ enum Exporter {
                 total: total,
                 currentItem: "\(baseName)_back.\(video.backExt)"
             )
-            await progressHandler(progress)
+            progressHandler(progress)
         }
 
         for bts in btsToExport {
@@ -336,7 +336,7 @@ enum Exporter {
                 total: total,
                 currentItem: baseName
             )
-            await progressHandler(progress)
+            progressHandler(progress)
         }
 
         if !conversationImages.isEmpty {
@@ -370,7 +370,7 @@ enum Exporter {
                     total: total,
                     currentItem: "Conversations/\(outputFilename)"
                 )
-                await progressHandler(progress)
+                progressHandler(progress)
             }
         }
 
