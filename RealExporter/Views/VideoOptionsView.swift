@@ -19,7 +19,7 @@ struct VideoOptionsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
+            FittingScrollView {
                 VStack(spacing: 24) {
                     Text("Video Options")
                         .font(.largeTitle)
@@ -70,7 +70,6 @@ struct VideoOptionsView: View {
             }
             .padding(20)
         }
-        .frame(minWidth: 500, minHeight: 500)
     }
 
     private static let cornerPositions: [OverlayPosition] = [.topLeft, .topRight, .bottomLeft, .bottomRight]

@@ -14,7 +14,7 @@ struct ExportOptionsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
+            FittingScrollView {
                 VStack(spacing: 24) {
                     Text("Export Options")
                         .font(.largeTitle)
@@ -60,7 +60,6 @@ struct ExportOptionsView: View {
             }
             .padding(20)
         }
-        .frame(minWidth: 500, minHeight: 500)
     }
 
     private var showOverlayPicker: Bool {

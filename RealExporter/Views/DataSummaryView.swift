@@ -22,7 +22,7 @@ struct DataSummaryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
+            FittingScrollView {
                 VStack(spacing: 24) {
                     Text("Summary")
                         .font(.largeTitle)
@@ -66,7 +66,6 @@ struct DataSummaryView: View {
             }
             .padding(20)
         }
-        .frame(minWidth: 500, minHeight: 400)
     }
 
     private var userSection: some View {
