@@ -145,4 +145,37 @@ struct ExporterTests {
             try await Exporter.export(data: TestFixtures.makeBeRealExport(posts: [post], baseURL: root), options: options) { _ in }
         }
     }
+
+    @Test(arguments: ImageStyle.allCases, [OverlayPosition.auto, .all])
+    func previewMatchesExportedFiles(style: ImageStyle, position: OverlayPosition) throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let image = try TestFixtures.makeImage()
+        let back = root.appendingPathComponent("back.webp")
+        let front = root.appendingPathComponent("front.webp")
+        try TestFixtures.writeImage(image, to: back)
+        try TestFixtures.writeImage(image, to: front)
+        try ImageProcessor.processAndSave(
+            backPath: back, frontPath: front, outputPath: root.appendingPathComponent("out.jpg"),
+            style: style, overlayPosition: position, metadata: ExportMetadata(date: nil, location: nil, caption: nil)
+        )
+        let written = try FileManager.default.contentsOfDirectory(atPath: root.path).filter { $0.hasPrefix("out") }
+        let preview = try ImageProcessor.previewOutputs(
+            backPath: back, frontPath: front, style: style, overlayPosition: position, maxPixelSize: 40
+        )
+        #expect(Set(preview.map { "out\($0.suffix).jpg" }) == Set(written))
+        #expect(preview.allSatisfy { max($0.image.width, $0.image.height) <= 40 })
+    }
+
+    @Test func exportFolderIsNumberedWhenNameIsTaken() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let first = try Exporter.makeExportFolder(in: root, date: date)
+        let second = try Exporter.makeExportFolder(in: root, date: date)
+        #expect(first != second)
+        #expect(second.lastPathComponent == first.lastPathComponent + " 2")
+    }
 }

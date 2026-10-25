@@ -18,6 +18,9 @@ final class AppViewModel {
     var selectedURL: URL?
     var isLoading = false
     var loadedData: BeRealExport?
+    /// Every BeReal with both photos, collected once per import because it
+    /// checks each file on disk.
+    private(set) var frames: [VideoGenerator.FrameItem] = []
     var exportOptions = ExportOptions()
     var videoOptions = VideoOptions()
     var exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
@@ -35,19 +38,28 @@ final class AppViewModel {
         endDate ?? loadedData?.dateRange?.upperBound ?? Date()
     }
 
+    var framesInRange: [VideoGenerator.FrameItem] {
+        VideoGenerator.filterFrames(frames, startDate: effectiveStartDate, endDate: effectiveEndDate)
+    }
+
     private var exportTask: Task<Void, Never>?
     private var videoTask: Task<Void, Never>?
+    // Picked files and folders stay accessible while these are held.
+    private var sourceAccess: ScopedAccess?
+    private var destinationAccess: ScopedAccess?
 
     func loadData(from url: URL) {
         // A second drop while unzipping would orphan the first extraction.
         guard !isLoading else { return }
         isLoading = true
         appState = .loading
+        sourceAccess = ScopedAccess(url)
 
         Task {
             do {
                 let data = try await DataLoader.loadFromURL(url)
                 self.loadedData = data
+                self.frames = VideoGenerator.collectFrames(data: data)
                 self.startDate = data.dateRange?.lowerBound
                 self.endDate = data.dateRange?.upperBound
                 self.isLoading = false
@@ -57,6 +69,7 @@ final class AppViewModel {
                 self.isLoading = false
                 self.appState = .selectSource
                 self.selectedURL = nil
+                self.sourceAccess = nil
             }
         }
     }
@@ -66,6 +79,19 @@ final class AppViewModel {
 
         exportOptions.startDate = startDate
         exportOptions.endDate = endDate
+        #if os(iOS)
+        // Picked folders often hold other files, so export into a new one.
+        if let picked = exportOptions.destinationURL {
+            destinationAccess = ScopedAccess(picked)
+            do {
+                exportOptions.destinationURL = try Exporter.makeExportFolder(in: picked)
+            } catch {
+                errorMessage = error.localizedDescription
+                destinationAccess = nil
+                return
+            }
+        }
+        #endif
         appState = .exporting
         exportState = .exporting
         exportResult = ExportResult()
@@ -146,8 +172,7 @@ final class AppViewModel {
         exportTask = nil
         videoTask?.cancel()
         videoTask = nil
-        exportOptions.destinationURL = nil
-        videoOptions.destinationURL = nil
+        clearDestinations()
         exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
         exportState = .exporting
         appState = .hub
@@ -163,13 +188,26 @@ final class AppViewModel {
             try? FileManager.default.removeItem(at: tempDir)
         }
         loadedData = nil
+        frames = []
+        sourceAccess = nil
         startDate = nil
         endDate = nil
-        exportOptions.destinationURL = nil
-        videoOptions.destinationURL = nil
+        clearDestinations()
         exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
         exportState = .exporting
         appState = .selectSource
+    }
+
+    private func clearDestinations() {
+        #if os(iOS)
+        // The video only lives in the temporary folder until it's shared.
+        if let video = videoOptions.destinationURL {
+            try? FileManager.default.removeItem(at: video)
+        }
+        #endif
+        exportOptions.destinationURL = nil
+        videoOptions.destinationURL = nil
+        destinationAccess = nil
     }
 }
 
@@ -194,6 +232,7 @@ struct ContentView: View {
                 if let data = viewModel.loadedData {
                     DataSummaryView(
                         data: data,
+                        frames: viewModel.frames,
                         startDate: Binding(
                             get: { viewModel.effectiveStartDate },
                             set: { viewModel.startDate = $0 }
@@ -213,13 +252,9 @@ struct ContentView: View {
                 }
 
             case .hub:
-                if let data = viewModel.loadedData {
+                if viewModel.loadedData != nil {
                     HubView(
-                        beRealCount: VideoGenerator.frameCount(
-                            data: data,
-                            startDate: viewModel.effectiveStartDate,
-                            endDate: viewModel.effectiveEndDate
-                        ),
+                        beRealCount: viewModel.framesInRange.count,
                         onExportPhotos: {
                             viewModel.appState = .options
                         },
@@ -236,6 +271,7 @@ struct ContentView: View {
                 if let data = viewModel.loadedData {
                     ExportOptionsView(
                         data: data,
+                        frames: viewModel.framesInRange,
                         options: $viewModel.exportOptions,
                         startDate: viewModel.startDate,
                         endDate: viewModel.endDate,
@@ -267,13 +303,9 @@ struct ContentView: View {
                 )
 
             case .videoOptions:
-                if let data = viewModel.loadedData {
+                if viewModel.loadedData != nil {
                     VideoOptionsView(
-                        beRealCount: VideoGenerator.frameCount(
-                            data: data,
-                            startDate: viewModel.effectiveStartDate,
-                            endDate: viewModel.effectiveEndDate
-                        ),
+                        frames: viewModel.framesInRange,
                         options: $viewModel.videoOptions,
                         onCreateVideo: {
                             viewModel.startVideoGeneration()

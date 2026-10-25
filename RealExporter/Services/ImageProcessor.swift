@@ -41,80 +41,70 @@ nonisolated enum ImageProcessor {
         overlayPosition: OverlayPosition,
         metadata: ExportMetadata
     ) throws {
-        switch style {
-        case .combined:
-            try saveCombinedImage(
-                backPath: backPath,
-                frontPath: frontPath,
-                outputPath: outputPath,
-                overlayPosition: overlayPosition,
-                metadata: metadata
-            )
-        case .separate:
-            try saveSeparateImages(
-                backPath: backPath,
-                frontPath: frontPath,
-                outputPath: outputPath,
-                metadata: metadata
-            )
-        case .both:
-            try saveSeparateImages(
-                backPath: backPath,
-                frontPath: frontPath,
-                outputPath: outputPath,
-                metadata: metadata
-            )
-            try saveCombinedImage(
-                backPath: backPath,
-                frontPath: frontPath,
-                outputPath: outputPath,
-                overlayPosition: overlayPosition,
-                metadata: metadata
-            )
+        let (backImage, frontImage) = try loadPair(backPath: backPath, frontPath: frontPath)
+        let baseName = outputPath.deletingPathExtension().lastPathComponent
+        let directory = outputPath.deletingLastPathComponent()
+
+        try renderOutputs(back: backImage, front: frontImage, style: style, overlayPosition: overlayPosition) { suffix, image in
+            try saveAsJPEG(image: image, to: directory.appendingPathComponent("\(baseName)\(suffix).jpg"), metadata: metadata)
         }
     }
 
-    private static func saveCombinedImage(
+    /// Scaled-down versions of the images `processAndSave` writes, keyed by
+    /// the suffix of each file name, so a preview always matches the export.
+    static func previewOutputs(
         backPath: URL,
         frontPath: URL,
-        outputPath: URL,
+        style: ImageStyle,
         overlayPosition: OverlayPosition,
-        metadata: ExportMetadata
-    ) throws {
+        maxPixelSize: CGFloat
+    ) throws -> [(suffix: String, image: CGImage)] {
+        let (backImage, frontImage) = try loadPair(backPath: backPath, frontPath: frontPath)
+        let size = CGSize(width: maxPixelSize, height: maxPixelSize)
+        var outputs: [(suffix: String, image: CGImage)] = []
+        try renderOutputs(back: backImage, front: frontImage, style: style, overlayPosition: overlayPosition) { suffix, image in
+            outputs.append((suffix, try scaled(image, toFit: size)))
+        }
+        return outputs
+    }
+
+    private static func loadPair(backPath: URL, frontPath: URL) throws -> (back: CGImage, front: CGImage) {
         guard let backImage = loadImage(from: backPath) else {
             throw ImageProcessorError.failedToLoadImage(backPath.path)
         }
         guard let frontImage = loadImage(from: frontPath) else {
             throw ImageProcessorError.failedToLoadImage(frontPath.path)
         }
+        return (backImage, frontImage)
+    }
 
-        let baseName = outputPath.deletingPathExtension().lastPathComponent
-        let directory = outputPath.deletingLastPathComponent()
+    /// Renders every image one BeReal is exported as, in the order they're
+    /// written, passing each with the suffix for its file name.
+    private static func renderOutputs(
+        back backImage: CGImage,
+        front frontImage: CGImage,
+        style: ImageStyle,
+        overlayPosition: OverlayPosition,
+        body: (_ suffix: String, _ image: CGImage) throws -> Void
+    ) throws {
+        if style != .combined {
+            try body("_back", backImage)
+            try body("_front", frontImage)
+        }
+        guard style != .separate else { return }
 
         if overlayPosition == .all {
-            let corners: [OverlayPosition] = [.topLeft, .topRight, .bottomLeft, .bottomRight]
-            for corner in corners {
-                let suffix = switch corner {
-                case .topLeft: "topLeft"
-                case .topRight: "topRight"
-                case .bottomLeft: "bottomLeft"
-                case .bottomRight: "bottomRight"
-                default: "topLeft"
-                }
-
-                let backOutputPath = directory.appendingPathComponent("\(baseName)_combined_back_\(suffix).jpg")
-                let frontOutputPath = directory.appendingPathComponent("\(baseName)_combined_front_\(suffix).jpg")
-
-                let backAsBg = try stitchImages(back: backImage, front: frontImage, overlayPosition: corner)
-                try saveAsJPEG(image: backAsBg, to: backOutputPath, metadata: metadata)
-
-                let frontAsBg = try stitchImages(back: frontImage, front: backImage, overlayPosition: corner)
-                try saveAsJPEG(image: frontAsBg, to: frontOutputPath, metadata: metadata)
+            let corners: [(OverlayPosition, String)] = [
+                (.topLeft, "topLeft"),
+                (.topRight, "topRight"),
+                (.bottomLeft, "bottomLeft"),
+                (.bottomRight, "bottomRight"),
+            ]
+            for (corner, name) in corners {
+                try body("_combined_back_\(name)", stitchImages(back: backImage, front: frontImage, overlayPosition: corner))
+                try body("_combined_front_\(name)", stitchImages(back: frontImage, front: backImage, overlayPosition: corner))
             }
         } else {
-            let backOutputPath = directory.appendingPathComponent("\(baseName)_combined_back.jpg")
-            let frontOutputPath = directory.appendingPathComponent("\(baseName)_combined_front.jpg")
-
             let backPosition = overlayPosition == .auto
                 ? resolveAutoPosition(background: backImage, overlay: frontImage)
                 : overlayPosition
@@ -122,35 +112,9 @@ nonisolated enum ImageProcessor {
                 ? resolveAutoPosition(background: frontImage, overlay: backImage)
                 : overlayPosition
 
-            let backAsBg = try stitchImages(back: backImage, front: frontImage, overlayPosition: backPosition)
-            try saveAsJPEG(image: backAsBg, to: backOutputPath, metadata: metadata)
-
-            let frontAsBg = try stitchImages(back: frontImage, front: backImage, overlayPosition: frontPosition)
-            try saveAsJPEG(image: frontAsBg, to: frontOutputPath, metadata: metadata)
+            try body("_combined_back", stitchImages(back: backImage, front: frontImage, overlayPosition: backPosition))
+            try body("_combined_front", stitchImages(back: frontImage, front: backImage, overlayPosition: frontPosition))
         }
-    }
-
-    private static func saveSeparateImages(
-        backPath: URL,
-        frontPath: URL,
-        outputPath: URL,
-        metadata: ExportMetadata
-    ) throws {
-        let baseName = outputPath.deletingPathExtension().lastPathComponent
-        let directory = outputPath.deletingLastPathComponent()
-
-        let backOutputPath = directory.appendingPathComponent("\(baseName)_back.jpg")
-        let frontOutputPath = directory.appendingPathComponent("\(baseName)_front.jpg")
-
-        guard let backImage = loadImage(from: backPath) else {
-            throw ImageProcessorError.failedToLoadImage(backPath.path)
-        }
-        guard let frontImage = loadImage(from: frontPath) else {
-            throw ImageProcessorError.failedToLoadImage(frontPath.path)
-        }
-
-        try saveAsJPEG(image: backImage, to: backOutputPath, metadata: metadata)
-        try saveAsJPEG(image: frontImage, to: frontOutputPath, metadata: metadata)
     }
 
     static func convertToJPEG(source: URL, destination: URL, date: Date?) throws {
@@ -715,8 +679,12 @@ nonisolated enum ImageProcessor {
         guard let targetSize, targetSize.width > 0, targetSize.height > 0 else {
             return rendered
         }
+        return try scaled(rendered, toFit: targetSize)
+    }
 
-        let srcAspect = Double(rendered.width) / Double(rendered.height)
+    /// Scales `image` to fit within `targetSize`, keeping its aspect ratio.
+    static func scaled(_ image: CGImage, toFit targetSize: CGSize) throws -> CGImage {
+        let srcAspect = Double(image.width) / Double(image.height)
         let dstAspect = targetSize.width / targetSize.height
 
         let fitWidth: Int
@@ -741,7 +709,7 @@ nonisolated enum ImageProcessor {
             throw ImageProcessorError.failedToCreateContext
         }
         ctx.interpolationQuality = .high
-        ctx.draw(rendered, in: CGRect(x: 0, y: 0, width: fitWidth, height: fitHeight))
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: fitWidth, height: fitHeight))
         guard let scaled = ctx.makeImage() else {
             throw ImageProcessorError.failedToCreateImage
         }

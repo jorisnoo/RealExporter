@@ -10,7 +10,7 @@ struct DataSummaryViewTests {
         let start = try #require(calendar.date(from: DateComponents(year: 2024, month: 3, day: 1)))
         let end = try #require(calendar.date(byAdding: .day, value: days, to: start))
         let view = DataSummaryView(
-            data: TestFixtures.makeBeRealExport(), startDate: .constant(start),
+            data: TestFixtures.makeBeRealExport(), frames: [], startDate: .constant(start),
             endDate: .constant(end), dateRange: start...end, onContinue: {}, onBack: {}
         )
         let boundaries = view.yearBoundaries(in: start...end)

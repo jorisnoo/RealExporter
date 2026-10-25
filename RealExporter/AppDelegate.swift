@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 #if !APP_STORE
 import AppUpdater
@@ -27,3 +28,4 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     #endif
 }
+#endif

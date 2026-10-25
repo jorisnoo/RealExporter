@@ -6,6 +6,13 @@ struct SourceSelectionView: View {
     @Binding var isLoading: Bool
     @State private var isDragging = false
     @State private var showingGuide = false
+    @State private var showingPicker = false
+
+    #if os(macOS)
+    private static let pickPrompt = "Drop or click to select"
+    #else
+    private static let pickPrompt = "Tap to select"
+    #endif
 
     var body: some View {
         VStack(spacing: 32) {
@@ -24,13 +31,22 @@ struct SourceSelectionView: View {
             Button("Don't have your data yet?") {
                 showingGuide = true
             }
+            #if os(macOS)
             .buttonStyle(.link)
+            #else
+            .buttonStyle(.borderless)
+            #endif
             .font(.subheadline)
         }
-        .padding(40)
-        .frame(minWidth: 500, minHeight: 400)
+        .padding(.screenPadding)
+        .windowMinSize(width: 500, height: 400)
         .sheet(isPresented: $showingGuide) {
             DataRequestGuideView()
+        }
+        .fileImporter(isPresented: $showingPicker, allowedContentTypes: [.zip, .folder]) { result in
+            if case .success(let url) = result {
+                selectedURL = url
+            }
         }
     }
 
@@ -43,7 +59,7 @@ struct SourceSelectionView: View {
                 )
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(isDragging ? Color.accentColor.opacity(0.1) : Color(.controlBackgroundColor))
+                        .fill(isDragging ? Color.accentColor.opacity(0.1) : Color.cardBackground)
                 )
 
             VStack(spacing: 16) {
@@ -57,7 +73,7 @@ struct SourceSelectionView: View {
                     Text("Loading...")
                         .foregroundColor(.secondary)
                 } else {
-                    Text("Drop or click to select")
+                    Text(Self.pickPrompt)
                         .font(.headline)
                         .foregroundColor(isDragging ? .accentColor : .primary)
 
@@ -69,9 +85,10 @@ struct SourceSelectionView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
-        .onTapGesture {
-            openFilePicker()
-        }
+        .onTapGesture(perform: pickSource)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { pickSource() }
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
             selectedURL = url
@@ -81,6 +98,16 @@ struct SourceSelectionView: View {
         }
     }
 
+    private func pickSource() {
+        guard !isLoading else { return }
+        #if os(macOS)
+        openFilePicker()
+        #else
+        showingPicker = true
+        #endif
+    }
+
+    #if os(macOS)
     private func openFilePicker() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
@@ -101,4 +128,5 @@ struct SourceSelectionView: View {
             }
         }
     }
+    #endif
 }

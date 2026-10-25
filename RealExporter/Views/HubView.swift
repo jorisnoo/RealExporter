@@ -13,23 +13,17 @@ struct HubView: View {
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-                HStack(spacing: 20) {
-                    actionCard(
-                        icon: "photo.on.rectangle.angled",
-                        title: "Export Photos",
-                        subtitle: "Save \(beRealCount) BeReals as image files",
-                        action: onExportPhotos
-                    )
-
-                    actionCard(
-                        icon: "film.stack",
-                        title: "Create Time-Lapse",
-                        subtitle: "Generate a video from \(beRealCount) BeReals",
-                        action: onCreateVideo
-                    )
+                #if os(macOS)
+                HStack(spacing: 20) { actionCards }
+                #else
+                // Side by side on iPad, stacked on a phone.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 20) { actionCards }
+                    VStack(spacing: 16) { actionCards }
                 }
+                #endif
             }
-            .padding(40)
+            .padding(.screenPadding)
 
             Spacer()
 
@@ -45,7 +39,24 @@ struct HubView: View {
             }
             .padding(20)
         }
-        .frame(minWidth: 500, minHeight: 400)
+        .windowMinSize(width: 500, height: 400)
+    }
+
+    @ViewBuilder
+    private var actionCards: some View {
+        actionCard(
+            icon: "photo.on.rectangle.angled",
+            title: "Export Photos",
+            subtitle: "Save \(beRealCount) BeReals as image files",
+            action: onExportPhotos
+        )
+
+        actionCard(
+            icon: "film.stack",
+            title: "Create Time-Lapse",
+            subtitle: "Generate a video from \(beRealCount) BeReals",
+            action: onCreateVideo
+        )
     }
 
     private func actionCard(
@@ -70,13 +81,10 @@ struct HubView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(24)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.controlBackgroundColor))
-            )
+            .cardStyle()
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color(.separatorColor), lineWidth: 1)
+                    .stroke(Color.cardBorder, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

@@ -25,6 +25,7 @@
 - **Time-lapse:** one H.264 MP4 of your BeReals in order, 1–30 photos per second, with an optional date stamp.
 - **Everything else:** video BeReals and behind-the-scenes clips copied as-is, chat photos, and comments in a text file.
 - **Options:** a date range, and year/month/day folders or a flat folder.
+- **Preview:** see a BeReal exactly as it will be exported, or as a time-lapse frame, while you change the options.
 
 Everything runs locally. The app sends anonymous usage events via [Aptabase](https://aptabase.com); your photos never leave your Mac.
 
@@ -52,7 +53,7 @@ cd RealExporter
 open RealExporter.xcodeproj
 ```
 
-Build and run with Xcode 16+.
+Build and run with Xcode 16+. The `RealExporter` scheme builds the Mac app; `RealExporter iOS` builds the iPhone and iPad app (iOS 17+).
 
 ## How to Get Your BeReal Data
 

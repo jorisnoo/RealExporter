@@ -1,16 +1,24 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ExportOptionsView: View {
     private static let lastExportFolderKey = "lastExportFolder"
 
     let data: BeRealExport
+    let frames: [VideoGenerator.FrameItem]
     @Binding var options: ExportOptions
     let startDate: Date?
     let endDate: Date?
     let onExport: () -> Void
     let onBack: () -> Void
 
+    @State private var choosingFolder = false
 
+    /// The options that change how a BeReal looks once exported.
+    private nonisolated struct PreviewOptions: Equatable, Sendable {
+        let imageStyle: ImageStyle
+        let overlayPosition: OverlayPosition
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,6 +27,10 @@ struct ExportOptionsView: View {
                     Text("Export Options")
                         .font(.largeTitle)
                         .fontWeight(.bold)
+
+                    previewSection
+                        .padding(24)
+                        .cardStyle()
 
                     VStack(alignment: .leading, spacing: 24) {
                         imageStyleSection
@@ -32,12 +44,9 @@ struct ExportOptionsView: View {
                         contentSection
                     }
                     .padding(24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.controlBackgroundColor))
-                    )
+                    .cardStyle()
                 }
-                .padding(40)
+                .padding(.screenPadding)
             }
 
             Divider()
@@ -51,15 +60,53 @@ struct ExportOptionsView: View {
                 Spacer()
 
                 Button("Start Export") {
+                    #if os(macOS)
                     selectDestination()
                     if options.destinationURL != nil {
                         onExport()
                     }
+                    #else
+                    choosingFolder = true
+                    #endif
                 }
                 .buttonStyle(.borderedProminent)
             }
             .padding(20)
         }
+        .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
+            if case .success(let url) = result {
+                options.destinationURL = url
+                onExport()
+            }
+        }
+    }
+
+    private var previewSection: some View {
+        PreviewSection(
+            frames: frames,
+            options: PreviewOptions(imageStyle: options.imageStyle, overlayPosition: options.overlayPosition),
+            render: { frame, options in
+                guard let frontPath = frame.frontPath else { return [] }
+                let outputs = try ImageProcessor.previewOutputs(
+                    backPath: frame.backPath,
+                    frontPath: frontPath,
+                    style: options.imageStyle,
+                    overlayPosition: options.overlayPosition,
+                    maxPixelSize: 400
+                )
+                // Combined images first: they're what the options change most.
+                let combined = outputs.filter { $0.suffix.hasPrefix("_combined") }
+                let separate = outputs.filter { !$0.suffix.hasPrefix("_combined") }
+                return (combined + separate).map { output in
+                    PreviewImage(id: output.suffix, caption: "\(output.suffix.dropFirst()).jpg", image: output.image)
+                }
+            },
+            footer: { frame in
+                let path = Exporter.folderComponents(for: frame.date, folderStructure: options.folderStructure)
+                    + ["\(Exporter.baseName(for: frame.date))_….jpg"]
+                return "Saved as " + path.joined(separator: "/")
+            }
+        )
     }
 
     private var showOverlayPicker: Bool {
@@ -92,7 +139,7 @@ struct ExportOptionsView: View {
                         Text(position.rawValue).tag(position)
                     }
                 }
-                .pickerStyle(.segmented)
+                .compactPickerStyle()
                 .labelsHidden()
             }
         }
@@ -139,6 +186,7 @@ struct ExportOptionsView: View {
         }
     }
 
+    #if os(macOS)
     private func selectDestination() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
@@ -167,5 +215,5 @@ struct ExportOptionsView: View {
             UserDefaults.standard.set(url, forKey: Self.lastExportFolderKey)
         }
     }
-
+    #endif
 }

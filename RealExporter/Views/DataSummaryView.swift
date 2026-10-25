@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DataSummaryView: View {
     let data: BeRealExport
+    let frames: [VideoGenerator.FrameItem]
     @Binding var startDate: Date
     @Binding var endDate: Date
     let dateRange: ClosedRange<Date>?
@@ -9,7 +10,7 @@ struct DataSummaryView: View {
     let onBack: () -> Void
 
     private var filteredCount: Int {
-        VideoGenerator.frameCount(data: data, startDate: startDate, endDate: endDate)
+        VideoGenerator.filterFrames(frames, startDate: startDate, endDate: endDate).count
     }
 
     private var filteredConversationCount: Int {
@@ -41,12 +42,9 @@ struct DataSummaryView: View {
                         }
                     }
                     .padding(24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.controlBackgroundColor))
-                    )
+                    .cardStyle()
                 }
-                .padding(40)
+                .padding(.screenPadding)
             }
 
             Divider()
@@ -81,7 +79,7 @@ struct DataSummaryView: View {
     }
 
     private var statsSection: some View {
-        HStack(spacing: 32) {
+        HStack(spacing: .screenPadding * 0.8) {
             statItem(
                 icon: "camera.fill",
                 value: "\(data.uniqueBeRealCount)",

@@ -9,6 +9,7 @@ import SwiftUI
 struct FittingScrollView<Content: View>: View {
     @ViewBuilder var content: Content
 
+    #if os(macOS)
     /// Leaves room for the title bar and the button bar below the scroll view.
     private var maxHeight: CGFloat {
         (NSScreen.main?.visibleFrame.height ?? 600) - 160
@@ -21,8 +22,16 @@ struct FittingScrollView<Content: View>: View {
             }
         }
     }
+    #else
+    var body: some View {
+        ScrollView {
+            content
+        }
+    }
+    #endif
 }
 
+#if os(macOS)
 /// Sizes its only child to at least the child's ideal size, with the height
 /// capped at `maxHeight`, and fills any extra space offered beyond that.
 private struct IdealMinimumLayout: Layout {
@@ -40,3 +49,4 @@ private struct IdealMinimumLayout: Layout {
         subviews[0].place(at: bounds.origin, proposal: ProposedViewSize(bounds.size))
     }
 }
+#endif

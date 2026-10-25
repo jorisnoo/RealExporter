@@ -2,10 +2,19 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct VideoOptionsView: View {
-    let beRealCount: Int
+    let frames: [VideoGenerator.FrameItem]
     @Binding var options: VideoOptions
     let onCreateVideo: () -> Void
     let onBack: () -> Void
+
+    private var beRealCount: Int { frames.count }
+
+    /// The options that change how a frame looks.
+    private nonisolated struct PreviewOptions: Equatable, Sendable {
+        let imageContent: VideoImageContent
+        let overlayPosition: OverlayPosition
+        let showDateOverlay: Bool
+    }
 
     private var estimatedDuration: String {
         let seconds = Double(beRealCount) / options.framesPerSecond
@@ -25,6 +34,10 @@ struct VideoOptionsView: View {
                         .font(.largeTitle)
                         .fontWeight(.bold)
 
+                    previewSection
+                        .padding(24)
+                        .cardStyle()
+
                     VStack(alignment: .leading, spacing: 24) {
                         contentSection
 
@@ -41,12 +54,9 @@ struct VideoOptionsView: View {
                         dateOverlaySection
                     }
                     .padding(24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.controlBackgroundColor))
-                    )
+                    .cardStyle()
                 }
-                .padding(40)
+                .padding(.screenPadding)
             }
 
             Divider()
@@ -60,7 +70,13 @@ struct VideoOptionsView: View {
                 Spacer()
 
                 Button("Create Video") {
+                    #if os(macOS)
                     selectDestination()
+                    #else
+                    // Written to a temporary file, then shared or saved from the result screen.
+                    options.destinationURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("BeReal Time-Lapse.mp4")
+                    #endif
                     if options.destinationURL != nil {
                         onCreateVideo()
                     }
@@ -70,6 +86,31 @@ struct VideoOptionsView: View {
             }
             .padding(20)
         }
+    }
+
+    private var previewSection: some View {
+        PreviewSection(
+            frames: frames,
+            options: PreviewOptions(
+                imageContent: options.imageContent,
+                overlayPosition: options.overlayPosition,
+                showDateOverlay: options.showDateOverlay
+            ),
+            imageHeight: 240,
+            render: { frame, options in
+                let image = try VideoGenerator.render(
+                    frame,
+                    imageContent: options.imageContent,
+                    overlayPosition: options.overlayPosition,
+                    showDateOverlay: options.showDateOverlay,
+                    targetSize: CGSize(width: 600, height: 600)
+                )
+                return [PreviewImage(id: "frame", caption: nil, image: image)]
+            },
+            footer: { frame in
+                frame.date.formatted(date: .complete, time: .shortened)
+            }
+        )
     }
 
     private static let cornerPositions: [OverlayPosition] = [.topLeft, .topRight, .bottomLeft, .bottomRight]
@@ -84,7 +125,7 @@ struct VideoOptionsView: View {
                     Text(content.rawValue).tag(content)
                 }
             }
-            .pickerStyle(.segmented)
+            .compactPickerStyle()
             .labelsHidden()
 
             if options.imageContent == .combinedBackMain || options.imageContent == .combinedFrontMain {
@@ -96,7 +137,7 @@ struct VideoOptionsView: View {
                         Text(position.rawValue).tag(position)
                     }
                 }
-                .pickerStyle(.segmented)
+                .compactPickerStyle()
                 .labelsHidden()
             }
         }
@@ -154,6 +195,7 @@ struct VideoOptionsView: View {
         }
     }
 
+    #if os(macOS)
     private func selectDestination() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.mpeg4Movie]
@@ -164,4 +206,5 @@ struct VideoOptionsView: View {
             options.destinationURL = url
         }
     }
+    #endif
 }

@@ -38,10 +38,17 @@ struct ProgressContext {
         return "\(count) \(count == 1 ? singular : plural)"
     }
 
+    // On iOS the video waits in a temporary file until it's saved or shared.
+    #if os(macOS)
+    private static let videoCompletedMessage = "Video saved successfully"
+    #else
+    private static let videoCompletedMessage = "Your time-lapse is ready"
+    #endif
+
     static let videoGeneration = ProgressContext(
         activeTitle: "Generating Video...",
         completedTitle: "Video Complete",
-        completedMessage: { _ in "Video saved successfully" },
+        completedMessage: { _ in videoCompletedMessage },
         cancelledMessage: { progress in
             "\(progress.current) of \(progress.total) frames were processed before cancellation"
         },
@@ -83,8 +90,48 @@ struct ExportProgressView: View {
 
             bottomButtons
         }
-        .padding(40)
-        .frame(minWidth: 500, minHeight: 400)
+        .padding(.screenPadding)
+        .windowMinSize(width: 500, height: 400)
+        #if os(iOS)
+        // Auto-lock would suspend a long export partway through.
+        .onChange(of: isExporting, initial: true) {
+            UIApplication.shared.isIdleTimerDisabled = isExporting
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
+        #endif
+    }
+
+    private var isExporting: Bool {
+        if case .exporting = state { return true }
+        return false
+    }
+
+    @ViewBuilder
+    private func revealButton(_ url: URL) -> some View {
+        #if os(macOS)
+        Button("Open in Finder") {
+            if url.hasDirectoryPath {
+                NSWorkspace.shared.open(url)
+            } else {
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            }
+        }
+        .buttonStyle(.bordered)
+        #else
+        if url.hasDirectoryPath {
+            Button("Show in Files") {
+                url.showInFiles()
+            }
+            .buttonStyle(.bordered)
+        } else if FileManager.default.fileExists(atPath: url.path) {
+            ShareLink(item: url) {
+                Label("Save or Share Video", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        #endif
     }
 
     private var title: String {
@@ -125,10 +172,7 @@ struct ExportProgressView: View {
             }
         }
         .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.controlBackgroundColor))
-        )
+        .cardStyle()
     }
 
     private var completedContent: some View {
@@ -142,21 +186,11 @@ struct ExportProgressView: View {
                 .multilineTextAlignment(.center)
 
             if let url = destinationURL {
-                Button("Open in Finder") {
-                    if url.hasDirectoryPath {
-                        NSWorkspace.shared.open(url)
-                    } else {
-                        NSWorkspace.shared.activateFileViewerSelecting([url])
-                    }
-                }
-                .buttonStyle(.bordered)
+                revealButton(url)
             }
         }
         .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.controlBackgroundColor))
-        )
+        .cardStyle()
     }
 
     private var cancelledContent: some View {
@@ -176,21 +210,11 @@ struct ExportProgressView: View {
             }
 
             if let url = destinationURL {
-                Button("Open in Finder") {
-                    if url.hasDirectoryPath {
-                        NSWorkspace.shared.open(url)
-                    } else {
-                        NSWorkspace.shared.activateFileViewerSelecting([url])
-                    }
-                }
-                .buttonStyle(.bordered)
+                revealButton(url)
             }
         }
         .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.controlBackgroundColor))
-        )
+        .cardStyle()
     }
 
     private func failedContent(_ message: String) -> some View {
@@ -208,10 +232,7 @@ struct ExportProgressView: View {
                 .multilineTextAlignment(.center)
         }
         .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.controlBackgroundColor))
-        )
+        .cardStyle()
     }
 
     private var bottomButtons: some View {

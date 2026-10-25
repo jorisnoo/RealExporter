@@ -49,7 +49,7 @@ struct DataRequestGuideView: View {
 
                     expectSection
                 }
-                .padding(32)
+                .padding(.screenPadding * 0.8)
             }
 
             Divider()
@@ -64,7 +64,9 @@ struct DataRequestGuideView: View {
             }
             .padding(20)
         }
+        #if os(macOS)
         .frame(minWidth: 480, idealWidth: 520, minHeight: 500, idealHeight: 600)
+        #endif
     }
 
     private var stepsSection: some View {
@@ -105,8 +107,12 @@ struct DataRequestGuideView: View {
                 HStack {
                     Spacer()
                     Button {
+                        #if os(macOS)
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(Self.gdprMessage, forType: .string)
+                        #else
+                        UIPasteboard.general.string = Self.gdprMessage
+                        #endif
                         copied = true
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                             copied = false
@@ -121,10 +127,7 @@ struct DataRequestGuideView: View {
                     .padding(12)
                 }
             }
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(.controlBackgroundColor))
-            )
+            .cardStyle(cornerRadius: 8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(Color.secondary.opacity(0.2))
@@ -142,7 +145,11 @@ struct DataRequestGuideView: View {
                 bulletPoint("Their reply arrives in the app under **Help › Contact Us › Messages**, with a link to a ZIP file containing:")
                 bulletPoint("Your photos in WebP format", indented: true)
                 bulletPoint("JSON files with your posts, comments and other metadata", indented: true)
+                #if os(macOS)
                 bulletPoint("Drop the ZIP (or the unzipped folder) onto RealExporter")
+                #else
+                bulletPoint("Save the ZIP to Files, then open it in RealExporter")
+                #endif
             }
         }
     }

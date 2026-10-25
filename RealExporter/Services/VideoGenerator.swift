@@ -30,7 +30,7 @@ enum VideoGeneratorError: LocalizedError {
 }
 
 enum VideoGenerator {
-    struct FrameItem {
+    struct FrameItem: Sendable {
         let date: Date
         let backPath: URL
         let frontPath: URL?
@@ -121,21 +121,15 @@ enum VideoGenerator {
         for (index, frame) in frames.enumerated() {
             try Task.checkCancellation()
 
-            var rendered = try await Task.detached {
-                try ImageProcessor.renderFrame(
-                    backPath: frame.backPath,
-                    frontPath: frame.frontPath,
+            let rendered = try await Task.detached {
+                try render(
+                    frame,
                     imageContent: imageContent,
                     overlayPosition: overlayPos,
+                    showDateOverlay: showDateOverlay,
                     targetSize: targetSize
                 )
             }.value
-
-            if showDateOverlay {
-                rendered = try await Task.detached {
-                    try ImageProcessor.drawDateOverlay(on: rendered, date: frame.date)
-                }.value
-            }
 
             let presentationTime = CMTime(value: CMTimeValue(index), timescale: CMTimeScale(fps))
 
@@ -184,11 +178,26 @@ enum VideoGenerator {
         }
     }
 
-    static func frameCount(data: BeRealExport, startDate: Date, endDate: Date) -> Int {
-        filterFrames(collectFrames(data: data), startDate: startDate, endDate: endDate).count
+    /// One frame as it's written to the video, also used for the preview.
+    nonisolated static func render(
+        _ frame: FrameItem,
+        imageContent: VideoImageContent,
+        overlayPosition: OverlayPosition,
+        showDateOverlay: Bool,
+        targetSize: CGSize?
+    ) throws -> CGImage {
+        let rendered = try ImageProcessor.renderFrame(
+            backPath: frame.backPath,
+            frontPath: frame.frontPath,
+            imageContent: imageContent,
+            overlayPosition: overlayPosition,
+            targetSize: targetSize
+        )
+        guard showDateOverlay else { return rendered }
+        return try ImageProcessor.drawDateOverlay(on: rendered, date: frame.date)
     }
 
-    private static func filterFrames(_ frames: [FrameItem], startDate: Date?, endDate: Date?) -> [FrameItem] {
+    static func filterFrames(_ frames: [FrameItem], startDate: Date?, endDate: Date?) -> [FrameItem] {
         frames.filter { frame in
             if let start = startDate, frame.date < Calendar.current.startOfDay(for: start) {
                 return false
@@ -200,7 +209,9 @@ enum VideoGenerator {
         }
     }
 
-    private static func collectFrames(data: BeRealExport) -> [FrameItem] {
+    /// Every BeReal with both photos on disk, oldest first. This checks each
+    /// file, so callers should keep the result rather than ask again.
+    static func collectFrames(data: BeRealExport) -> [FrameItem] {
         let fileManager = FileManager.default
         var merged: [String: FrameItem] = [:]
 

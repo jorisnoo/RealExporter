@@ -226,7 +226,7 @@ enum Exporter {
 
         // Reserve the whole name family, including separate and combined images.
         func nextBaseName(for date: Date, suffix: String = "") -> String {
-            let base = "bereal_\(dateFormatter.string(from: date))\(suffix)"
+            let base = "\(Exporter.baseName(for: date, formatter: dateFormatter))\(suffix)"
             nameCounts[base, default: 0] += 1
             let count = nameCounts[base]!
             return count == 1 ? base : "\(base)_\(count)"
@@ -408,28 +408,48 @@ enum Exporter {
     ) throws -> URL {
         let fileManager = FileManager.default
 
-        let outputDirectory: URL
-        switch folderStructure {
-        case .byDate:
-            let calendar = ExportDateFormat.calendar
-            let year = calendar.component(.year, from: date)
-            let month = String(format: "%02d", calendar.component(.month, from: date))
-            let day = String(format: "%02d", calendar.component(.day, from: date))
-
-            outputDirectory = destinationURL
-                .appendingPathComponent(String(year))
-                .appendingPathComponent(month)
-                .appendingPathComponent(day)
-
-        case .flat:
-            outputDirectory = destinationURL
-        }
+        let outputDirectory = folderComponents(for: date, folderStructure: folderStructure)
+            .reduce(destinationURL) { $0.appendingPathComponent($1, isDirectory: true) }
 
         if !fileManager.fileExists(atPath: outputDirectory.path) {
             try fileManager.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         }
 
         return outputDirectory
+    }
+
+    /// Creates a new folder in `parent` to export into, named after `date`
+    /// and numbered if that name is taken.
+    static func makeExportFolder(in parent: URL, date: Date = Date()) throws -> URL {
+        let name = "RealExporter \(ExportDateFormat.formatter("yyyy-MM-dd HH.mm").string(from: date))"
+        var folder = parent.appendingPathComponent(name, isDirectory: true)
+        var number = 2
+        while FileManager.default.fileExists(atPath: folder.path) {
+            folder = parent.appendingPathComponent("\(name) \(number)", isDirectory: true)
+            number += 1
+        }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+        return folder
+    }
+
+    /// Subfolders a BeReal from `date` is exported into, e.g. `2024/05/12`.
+    static func folderComponents(for date: Date, folderStructure: FolderStructure) -> [String] {
+        switch folderStructure {
+        case .byDate:
+            let calendar = ExportDateFormat.calendar
+            return [
+                String(calendar.component(.year, from: date)),
+                String(format: "%02d", calendar.component(.month, from: date)),
+                String(format: "%02d", calendar.component(.day, from: date)),
+            ]
+        case .flat:
+            return []
+        }
+    }
+
+    /// Base file name of a BeReal from `date`, before any style suffix.
+    static func baseName(for date: Date, formatter: DateFormatter = ExportDateFormat.fileNameFormatter()) -> String {
+        "bereal_\(formatter.string(from: date))"
     }
 
     private static func buildOutputPath(
