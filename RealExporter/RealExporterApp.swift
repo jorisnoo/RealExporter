@@ -22,12 +22,12 @@ struct RealExporterApp: App {
         }
         .defaultSize(width: 500, height: 500)
         .windowResizability(.contentSize)
+        #if !APP_STORE
         .commands {
-            #if !APP_STORE
             CommandGroup(after: .appInfo) {
                 AppUpdateMenu(controller: appDelegate.updates)
             }
-            #endif
         }
+        #endif
     }
 }

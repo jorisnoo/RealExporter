@@ -15,6 +15,19 @@
       "/tmp/RealExporter-release-check",
       "CODE_SIGNING_ALLOWED=NO",
       "build"
+    ],
+    [
+      "xcodebuild",
+      "-project",
+      "RealExporter.xcodeproj",
+      "-scheme",
+      "RealExporter",
+      "-configuration",
+      "AppStore Release",
+      "-derivedDataPath",
+      "/tmp/RealExporter-release-check",
+      "CODE_SIGNING_ALLOWED=NO",
+      "build"
     ]
   ],
   "stable_only": true

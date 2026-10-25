@@ -1,5 +1,6 @@
 import Foundation
 import UniformTypeIdentifiers
+import ZIPFoundation
 
 enum DataLoaderError: LocalizedError {
     case invalidPath
@@ -241,25 +242,13 @@ enum DataLoader {
         return images
     }
 
-    private static func extractZip(_ zipURL: URL, to destination: URL) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-            process.arguments = ["-q", zipURL.path, "-d", destination.path]
-
-            process.terminationHandler = { process in
-                if process.terminationStatus == 0 {
-                    continuation.resume()
-                } else {
-                    continuation.resume(throwing: DataLoaderError.parsingError("Failed to extract ZIP file"))
-                }
-            }
-
-            do {
-                try process.run()
-            } catch {
-                continuation.resume(throwing: error)
-            }
+    /// Runs off the main actor so large archives don't block the UI.
+    @concurrent
+    private nonisolated static func extractZip(_ zipURL: URL, to destination: URL) async throws {
+        do {
+            try FileManager().unzipItem(at: zipURL, to: destination)
+        } catch {
+            throw DataLoaderError.parsingError("Failed to extract ZIP file")
         }
     }
 }

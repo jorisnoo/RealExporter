@@ -164,6 +164,42 @@ struct DataLoaderTests {
         #expect(export.user.username == "testuser")
     }
 
+    @Test func loadFromZipExtractsNestedDataFolder() async throws {
+        let tempDir = try createTempDirectory()
+        defer { cleanup(tempDir) }
+
+        let dataDir = tempDir.appendingPathComponent("bereal-export")
+        try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
+        try createValidDataFolder(at: dataDir)
+
+        let zipURL = tempDir.appendingPathComponent("export.zip")
+        let ditto = Process()
+        ditto.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+        ditto.arguments = ["-c", "-k", "--keepParent", dataDir.path, zipURL.path]
+        try ditto.run()
+        ditto.waitUntilExit()
+        try #require(ditto.terminationStatus == 0)
+
+        let export = try await DataLoader.loadFromURL(zipURL)
+        defer { export.temporaryDirectory.map(cleanup) }
+
+        #expect(export.user.username == "testuser")
+        #expect(export.posts.count == 1)
+        #expect(export.temporaryDirectory != nil)
+    }
+
+    @Test func loadFromZipWithCorruptArchiveThrows() async throws {
+        let tempDir = try createTempDirectory()
+        defer { cleanup(tempDir) }
+
+        let zipURL = tempDir.appendingPathComponent("broken.zip")
+        try "not a zip".write(to: zipURL, atomically: true, encoding: .utf8)
+
+        await #expect(throws: DataLoaderError.self) {
+            try await DataLoader.loadFromZip(zipURL)
+        }
+    }
+
     @Test func loadFromURLWithNonexistentPathThrows() async {
         let badURL = URL(fileURLWithPath: "/nonexistent/path/that/does/not/exist")
         await #expect(throws: Error.self) {

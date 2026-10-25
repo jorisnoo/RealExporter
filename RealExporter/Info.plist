@@ -6,5 +6,7 @@
 	<string>A-EU-4111441577</string>
 	<key>AptabaseHost</key>
 	<string>https://aptabase-endpoint-h42wr.bunny.run</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

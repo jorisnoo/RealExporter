@@ -12,6 +12,7 @@ Configured release checks:
 
 ```sh
 xcodebuild -project RealExporter.xcodeproj -scheme RealExporter -configuration Debug -derivedDataPath /tmp/RealExporter-release-check CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project RealExporter.xcodeproj -scheme RealExporter -configuration "AppStore Release" -derivedDataPath /tmp/RealExporter-release-check CODE_SIGNING_ALLOWED=NO build
 ```
 
 Install the project’s normal dependencies first. The helper runs these checks when publishing; dry-run prints them without executing them. Run any additional checks needed for the changed behavior before committing.
@@ -42,6 +43,23 @@ The existing workflow also updates the Homebrew tap.
 For a local signed build, use `./scripts/build-release.sh --clean --notarise --version X.Y.Z`. GitHub Actions remains responsible for publishing release assets.
 
 Apple app releases use stable numeric `X.Y.Z` versions. Keep the app’s marketing version in sync with the release tag; use an increasing build number for TestFlight/App Store submissions.
+
+## Mac App Store
+
+The `AppStore Debug` and `AppStore Release` configurations set the `APP_STORE` Swift flag (no AppUpdater menu or update checks, analytics report `distribution: app_store`), enable the App Sandbox with user-selected read/write files and outgoing network connections, and strip dead code. Use `AppStore Debug` to run the sandboxed app locally.
+
+The App Store build is not part of the tag workflow. After a release, archive and export it with the same marketing version and a build number higher than the last upload:
+
+```sh
+xcodebuild archive -project RealExporter.xcodeproj -scheme RealExporter \
+  -configuration "AppStore Release" -archivePath build/RealExporter-AppStore.xcarchive \
+  -allowProvisioningUpdates MARKETING_VERSION=X.Y.Z CURRENT_PROJECT_VERSION=N
+xcodebuild -exportArchive -archivePath build/RealExporter-AppStore.xcarchive \
+  -exportOptionsPlist scripts/ExportOptions-AppStore.plist -exportPath build/appstore \
+  -allowProvisioningUpdates
+```
+
+Upload `build/appstore/RealExporter.pkg` with Transporter, or open the archive in Xcode's Organizer and distribute it from there. `scripts/build-release.sh --configuration "AppStore Release"` still signs with Developer ID and builds a DMG, so don't use it for App Store uploads.
 
 ## Maintaining the release tools
 
