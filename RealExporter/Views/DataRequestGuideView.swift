@@ -14,6 +14,7 @@ struct DataRequestGuideView: View {
         Thank you.
         """
 
+    // Keep in sync with the README and src/pages/index.astro in realexporter-app.
     private static let steps = [
         "Open the **BeReal** app",
         "Tap your **Profile** (top right)",
@@ -138,10 +139,10 @@ struct DataRequestGuideView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 bulletPoint("BeReal must respond within **45 days**")
-                Text("You'll receive a ZIP file containing:")
-                    .padding(.leading, 4)
+                bulletPoint("Their reply arrives in the app under **Help › Contact Us › Messages**, with a link to a ZIP file containing:")
                 bulletPoint("Your photos in WebP format", indented: true)
-                bulletPoint("A JSON file with all your data and metadata", indented: true)
+                bulletPoint("JSON files with your posts, comments and other metadata", indented: true)
+                bulletPoint("Drop the ZIP (or the unzipped folder) onto RealExporter")
             }
         }
     }

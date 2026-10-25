@@ -30,6 +30,7 @@ Thank you.
 ## What to Expect
 
 - BeReal must respond within **45 days**
-- You'll receive a ZIP file containing:
+- Their reply arrives in the app under **Help > Contact Us > Messages**, with a link to a ZIP file containing:
   - Your photos in WebP format
-  - A JSON file with all your data and metadata
+  - JSON files with your posts, comments and other metadata
+- Drop the ZIP (or the unzipped folder) onto RealExporter

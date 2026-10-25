@@ -19,6 +19,15 @@
   <img src="assets/screenshot-2.png" alt="Screenshot" width="400">
 </p>
 
+## What it does
+
+- **Photos:** every BeReal as a JPEG with its date, caption and location in the EXIF data. Front camera as an inset (Auto picks the corner that covers the least of the photo), front and back as separate files, or both.
+- **Time-lapse:** one H.264 MP4 of your BeReals in order, 1–30 photos per second, with an optional date stamp.
+- **Everything else:** video BeReals and behind-the-scenes clips copied as-is, chat photos, and comments in a text file.
+- **Options:** a date range, and year/month/day folders or a flat folder.
+
+Everything runs locally. The app sends anonymous usage events via [Aptabase](https://aptabase.com); your photos never leave your Mac.
+
 ## Requirements
 
 - macOS 14.0 (Sonoma) or later

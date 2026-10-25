@@ -43,8 +43,7 @@ struct ExporterTests {
         }
         #expect(captions["first"] == photos.count / 2)
         #expect(captions["second"] == photos.count / 2)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HHmmss"
+        let formatter = ExportDateFormat.fileNameFormatter()
         let base = "bereal_\(formatter.string(from: posts[0].takenAt))"
         let comments = try String(contentsOf: output.appendingPathComponent("comments.txt"), encoding: .utf8)
         #expect(comments.contains("\(base):\n  - first comment"))
@@ -77,5 +76,73 @@ struct ExporterTests {
         let files = try FileManager.default.contentsOfDirectory(at: options.destinationURL!, includingPropertiesForKeys: nil)
         #expect(files.count == 6)
         #expect(try Set(files.map { try Data(contentsOf: $0) }) == expected)
+    }
+
+    @Test func chatPhotosWithSameTimestampAreAllExported() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let image = try TestFixtures.makeImage()
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        var chatImages: [ConversationImage] = []
+        for (conversation, filename, imageDate) in [("c1", "m1-a.webp", date), ("c1", "m1-b.webp", date), ("c2", "photo.webp", nil), ("c3", "photo.webp", nil)] as [(String, String, Date?)] {
+            let url = root.appendingPathComponent("\(conversation)_\(filename).png")
+            try TestFixtures.writeImage(image, to: url)
+            chatImages.append(ConversationImage(id: "\(conversation)_\(filename)", url: url, conversationId: conversation, filename: filename, date: imageDate))
+        }
+        var options = ExportOptions()
+        options.destinationURL = root.appendingPathComponent("output")
+        let result = try await Exporter.export(
+            data: TestFixtures.makeBeRealExport(conversationImages: chatImages, baseURL: root),
+            options: options
+        ) { _ in }
+        #expect(result == ExportResult(beReals: 0, videos: 0, chatPhotos: 4))
+        let folder = options.destinationURL!.appendingPathComponent("Conversations")
+        let names = try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted()
+        let stamp = ExportDateFormat.fileNameFormatter().string(from: date)
+        #expect(names == ["chat_\(stamp).jpg", "chat_\(stamp)_2.jpg", "chat_c2_photo.jpg", "chat_c3_photo.jpg"])
+        // Undated chat photos must not be stamped with the export date.
+        let source = try #require(CGImageSourceCreateWithURL(folder.appendingPathComponent("chat_c2_photo.jpg") as CFURL, nil))
+        let properties = try #require(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any])
+        let exif = properties[kCGImagePropertyExifDictionary as String] as? [String: Any]
+        #expect(exif?[kCGImagePropertyExifDateTimeOriginal as String] == nil)
+    }
+
+    @Test func commentsOnVideoPostsAreWritten() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        for name in ["clip.mp4", "clip_front.mp4"] {
+            try Data(name.utf8).write(to: root.appendingPathComponent(name))
+        }
+        let post = TestFixtures.makePost(
+            primaryPath: "clip.mp4", secondaryPath: "clip_front.mp4",
+            primaryMediaType: "video", secondaryMediaType: "video"
+        )
+        let data = TestFixtures.makeBeRealExport(posts: [post], comments: [Comment(postId: "clip", content: "nice")], baseURL: root)
+        #expect(data.filteredComments(startDate: nil, endDate: nil).count == 1)
+        var options = ExportOptions()
+        options.folderStructure = .flat
+        options.destinationURL = root.appendingPathComponent("output")
+        let result = try await Exporter.export(data: data, options: options) { _ in }
+        #expect(result.videos == 1)
+        let comments = try String(contentsOf: options.destinationURL!.appendingPathComponent("comments.txt"), encoding: .utf8)
+        #expect(comments.contains("  - nice"))
+    }
+
+    @Test func emptyDateRangeThrows() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let image = try TestFixtures.makeImage()
+        try TestFixtures.writeImage(image, to: root.appendingPathComponent("a.webp"))
+        let post = TestFixtures.makePost(primaryPath: "a.webp", secondaryPath: "a.webp", takenAt: Date(timeIntervalSince1970: 1_700_000_000))
+        var options = ExportOptions()
+        options.destinationURL = root.appendingPathComponent("output")
+        options.startDate = Date(timeIntervalSince1970: 1_800_000_000)
+        options.endDate = Date(timeIntervalSince1970: 1_800_000_000)
+        await #expect(throws: ExporterError.nothingToExport) {
+            try await Exporter.export(data: TestFixtures.makeBeRealExport(posts: [post], baseURL: root), options: options) { _ in }
+        }
     }
 }

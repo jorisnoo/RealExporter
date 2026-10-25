@@ -65,8 +65,7 @@ struct BeRealExport {
 
         var postDateById: [String: Date] = [:]
         for post in posts {
-            let postId = URL(fileURLWithPath: post.primary.path).lastPathComponent.replacingOccurrences(of: ".webp", with: "")
-            postDateById[postId] = post.takenAt
+            postDateById[post.primary.postId] = post.takenAt
         }
 
         return comments.filter { comment in
