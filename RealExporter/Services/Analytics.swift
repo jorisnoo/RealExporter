@@ -24,15 +24,15 @@ enum Analytics {
 
         let host = Bundle.main.infoDictionary?["AptabaseHost"] as? String
         let options = InitOptions(host: host)
-        Aptabase.shared.initialize(appKey: appKey, options: options)
+        Aptabase.shared.initialize(appKey: appKey, with: options)
         isInitialized = true
     }
 
-    private static func track(_ event: String, props: [String: EventValue] = [:]) {
+    private static func track(_ event: String, props: [String: Value] = [:]) {
         guard isInitialized else { return }
 
         var allProps = props
-        allProps["distribution"] = .string(distribution)
+        allProps["distribution"] = distribution
         Aptabase.shared.trackEvent(event, with: allProps)
     }
 
@@ -41,27 +41,27 @@ enum Analytics {
     }
 
     static func exportStarted(count: Int) {
-        track("export_started", props: ["count": .integer(count)])
+        track("export_started", props: ["count": count])
     }
 
     static func exportCompleted(count: Int, imageStyle: String, folderStructure: String) {
         track("export_completed", props: [
-            "count": .integer(count),
-            "image_style": .string(imageStyle),
-            "folder_structure": .string(folderStructure),
+            "count": count,
+            "image_style": imageStyle,
+            "folder_structure": folderStructure,
         ])
     }
 
     static func videoStarted(count: Int) {
-        track("video_started", props: ["count": .integer(count)])
+        track("video_started", props: ["count": count])
     }
 
     static func videoCompleted(count: Int, imageContent: String, resolution: String, fps: Double) {
         track("video_completed", props: [
-            "count": .integer(count),
-            "image_content": .string(imageContent),
-            "resolution": .string(resolution),
-            "fps": .double(fps),
+            "count": count,
+            "image_content": imageContent,
+            "resolution": resolution,
+            "fps": fps,
         ])
     }
 }
