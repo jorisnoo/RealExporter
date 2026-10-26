@@ -6,8 +6,9 @@ struct DataSummaryView: View {
     @Binding var startDate: Date
     @Binding var endDate: Date
     let dateRange: ClosedRange<Date>?
-    let onContinue: () -> Void
-    let onBack: () -> Void
+    let onExportPhotos: () -> Void
+    let onCreateVideo: () -> Void
+    let onStartOver: () -> Void
 
     private var filteredCount: Int {
         VideoGenerator.filterFrames(frames, startDate: startDate, endDate: endDate).count
@@ -43,6 +44,16 @@ struct DataSummaryView: View {
                     }
                     .padding(24)
                     .cardStyle()
+
+                    #if os(macOS)
+                    HStack(spacing: 16) { actionCards }
+                    #else
+                    // Side by side on iPad, stacked on a phone.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 16) { actionCards }
+                        VStack(spacing: 12) { actionCards }
+                    }
+                    #endif
                 }
                 .padding(.screenPadding)
             }
@@ -51,19 +62,33 @@ struct DataSummaryView: View {
 
             HStack {
                 Button("Start Over") {
-                    onBack()
+                    onStartOver()
                 }
                 .buttonStyle(.bordered)
+                .help("Close this export and pick another")
 
                 Spacer()
-
-                Button("Continue") {
-                    onContinue()
-                }
-                .buttonStyle(.borderedProminent)
             }
             .padding(20)
         }
+    }
+
+    @ViewBuilder
+    private var actionCards: some View {
+        ActionCard(
+            icon: "photo.on.rectangle.angled",
+            title: "Export Photos",
+            subtitle: "Save \(filteredCount) BeReals as image files",
+            action: onExportPhotos
+        )
+
+        ActionCard(
+            icon: "film.stack",
+            title: "Create Time-Lapse",
+            subtitle: "Make a video of \(filteredCount) BeReals",
+            action: onCreateVideo
+        )
+        .disabled(filteredCount == 0)
     }
 
     private var userSection: some View {
@@ -127,12 +152,6 @@ struct DataSummaryView: View {
     private static let thumbDiameter: CGFloat = 18
     private static let snapThreshold: CGFloat = 0.02
 
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMM yyyy"
-        return f
-    }()
-
     private func normalizedPosition(for date: Date, in range: ClosedRange<Date>) -> CGFloat {
         let total = range.upperBound.timeIntervalSince(range.lowerBound)
         guard total > 0 else { return 0 }
@@ -175,8 +194,21 @@ struct DataSummaryView: View {
 
     private func dateRangeSection(_ range: ClosedRange<Date>) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Date Range", systemImage: "calendar")
-                .font(.headline)
+            HStack {
+                Label("Date Range", systemImage: "calendar")
+                    .font(.headline)
+
+                Spacer()
+
+                if startDate != range.lowerBound || endDate != range.upperBound {
+                    Button("Show All") {
+                        startDate = range.lowerBound
+                        endDate = range.upperBound
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.subheadline)
+                }
+            }
 
             GeometryReader { geo in
                 let trackWidth = geo.size.width
@@ -258,19 +290,61 @@ struct DataSummaryView: View {
             }
             .frame(height: 12)
 
+            // Typing or picking a day is more precise than dragging.
             HStack {
-                Text(Self.dateFormatter.string(from: startDate))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                DatePicker("From", selection: $startDate, in: range.lowerBound...endDate, displayedComponents: .date)
+                    .fixedSize()
                 Spacer()
-                Text(Self.dateFormatter.string(from: endDate))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                DatePicker("To", selection: $endDate, in: startDate...range.upperBound, displayedComponents: .date)
+                    .fixedSize()
             }
+            .datePickerStyle(.compact)
+            .font(.subheadline)
 
             Text("\(filteredCount) BeReals, \(filteredConversationCount) chat photos, \(filteredCommentCount) comments in selected range")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
+    }
+}
+
+/// A large button for one of the things the loaded data can be turned into.
+private struct ActionCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let action: () -> Void
+
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 32))
+                    .frame(height: 40)
+                    .foregroundStyle(isEnabled ? Color.accentColor : Color.secondary)
+
+                Text(title)
+                    .font(.headline)
+
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(20)
+            .cardStyle()
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isHovered && isEnabled ? Color.accentColor : Color.cardBorder, lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .opacity(isEnabled ? 1 : 0.6)
+        .onHover { isHovered = $0 }
     }
 }

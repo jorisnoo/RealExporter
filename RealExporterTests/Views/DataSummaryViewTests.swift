@@ -11,7 +11,8 @@ struct DataSummaryViewTests {
         let end = try #require(calendar.date(byAdding: .day, value: days, to: start))
         let view = DataSummaryView(
             data: TestFixtures.makeBeRealExport(), frames: [], startDate: .constant(start),
-            endDate: .constant(end), dateRange: start...end, onContinue: {}, onBack: {}
+            endDate: .constant(end), dateRange: start...end,
+            onExportPhotos: {}, onCreateVideo: {}, onStartOver: {}
         )
         let boundaries = view.yearBoundaries(in: start...end)
         #expect(boundaries.map(\.year) == (days < 365 ? [] : [2025, 2026]))

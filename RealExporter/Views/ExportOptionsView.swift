@@ -28,23 +28,21 @@ struct ExportOptionsView: View {
                         .font(.largeTitle)
                         .fontWeight(.bold)
 
-                    previewSection
-                        .padding(24)
-                        .cardStyle()
+                    PreviewAndSettings {
+                        previewSection
+                    } settings: {
+                        VStack(alignment: .leading, spacing: 24) {
+                            imageStyleSection
 
-                    VStack(alignment: .leading, spacing: 24) {
-                        imageStyleSection
+                            Divider()
 
-                        Divider()
+                            folderStructureSection
 
-                        folderStructureSection
+                            Divider()
 
-                        Divider()
-
-                        contentSection
+                            contentSection
+                        }
                     }
-                    .padding(24)
-                    .cardStyle()
                 }
                 .padding(.screenPadding)
             }
@@ -56,6 +54,7 @@ struct ExportOptionsView: View {
                     onBack()
                 }
                 .buttonStyle(.bordered)
+                .keyboardShortcut(.cancelAction)
 
                 Spacer()
 
@@ -70,6 +69,7 @@ struct ExportOptionsView: View {
                     #endif
                 }
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(20)
         }
@@ -139,7 +139,8 @@ struct ExportOptionsView: View {
                         Text(position.rawValue).tag(position)
                     }
                 }
-                .compactPickerStyle()
+                .pickerStyle(.menu)
+                .fixedSize()
                 .labelsHidden()
             }
         }
@@ -193,24 +194,14 @@ struct ExportOptionsView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.message = "Select the destination folder for exported images"
+        panel.prompt = "Export"
+        panel.message = "Choose where to export. If the folder isn't empty, a new folder is created in it."
 
         if let lastFolder = UserDefaults.standard.url(forKey: Self.lastExportFolderKey) {
             panel.directoryURL = lastFolder
         }
 
         if panel.runModal() == .OK, let url = panel.url {
-            let contents = (try? FileManager.default.contentsOfDirectory(atPath: url.path)) ?? []
-            let visibleContents = contents.filter { !$0.hasPrefix(".") }
-            if !visibleContents.isEmpty {
-                let alert = NSAlert()
-                alert.messageText = "Folder Not Empty"
-                alert.informativeText = "The selected folder is not empty. Please choose an empty folder."
-                alert.alertStyle = .warning
-                alert.addButton(withTitle: "OK")
-                alert.runModal()
-                return
-            }
             options.destinationURL = url
             UserDefaults.standard.set(url, forKey: Self.lastExportFolderKey)
         }

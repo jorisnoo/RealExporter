@@ -65,30 +65,38 @@ struct PreviewSection<Options: Equatable & Sendable>: View {
         }
     }
 
-    private var imageStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 12) {
-                ForEach(images) { item in
-                    let width = imageHeight * CGFloat(item.image.width) / CGFloat(max(item.image.height, 1))
-                    VStack(spacing: 6) {
-                        Image(decorative: item.image, scale: 1)
-                            .resizable()
-                            .frame(width: width, height: imageHeight)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+    private func width(of image: CGImage) -> CGFloat {
+        imageHeight * CGFloat(image.width) / CGFloat(max(image.height, 1))
+    }
 
-                        if let caption = item.caption {
-                            Text(caption)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .frame(width: width)
-                        }
+    /// Wraps into rows rather than scrolling sideways, which a mouse can't do.
+    private var imageStrip: some View {
+        let columnWidth = images.first.map { width(of: $0.image) } ?? imageHeight
+        return LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: columnWidth), spacing: 12, alignment: .top)],
+            alignment: .leading,
+            spacing: 12
+        ) {
+            ForEach(images) { item in
+                let width = width(of: item.image)
+                VStack(spacing: 6) {
+                    Image(decorative: item.image, scale: 1)
+                        .resizable()
+                        .frame(width: width, height: imageHeight)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                    if let caption = item.caption {
+                        Text(caption)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(width: width)
                     }
                 }
             }
-            .frame(minHeight: imageHeight, alignment: .top)
         }
+        .frame(minHeight: imageHeight, alignment: .top)
         .opacity(isRendering ? 0.5 : 1)
         .overlay {
             if failed {
@@ -110,7 +118,8 @@ struct PreviewSection<Options: Equatable & Sendable>: View {
                 Image(systemName: "chevron.left")
             }
             .disabled(index == 0)
-            .help("Previous BeReal")
+            .keyboardShortcut(.leftArrow, modifiers: .command)
+            .help("Previous BeReal (⌘←)")
 
             Text("\(index + 1) of \(frames.count)")
                 .font(.caption)
@@ -123,7 +132,8 @@ struct PreviewSection<Options: Equatable & Sendable>: View {
                 Image(systemName: "chevron.right")
             }
             .disabled(index == frames.count - 1)
-            .help("Next BeReal")
+            .keyboardShortcut(.rightArrow, modifiers: .command)
+            .help("Next BeReal (⌘→)")
 
             Button {
                 position = Int.random(in: frames.indices)
@@ -154,5 +164,38 @@ struct PreviewSection<Options: Equatable & Sendable>: View {
         images = rendered ?? []
         failed = rendered == nil
         isRendering = false
+    }
+}
+
+/// The preview and the settings that change it, side by side on the Mac so
+/// each change shows without scrolling. Stacked on iOS.
+struct PreviewAndSettings<Preview: View, Settings: View>: View {
+    @ViewBuilder var preview: Preview
+    @ViewBuilder var settings: Settings
+
+    var body: some View {
+        #if os(macOS)
+        HStack(alignment: .top, spacing: 20) {
+            preview
+                .padding(24)
+                .frame(width: 380)
+                .cardStyle()
+
+            settings
+                .padding(24)
+                .frame(minWidth: 340)
+                .cardStyle()
+        }
+        #else
+        VStack(spacing: 24) {
+            preview
+                .padding(24)
+                .cardStyle()
+
+            settings
+                .padding(24)
+                .cardStyle()
+        }
+        #endif
     }
 }

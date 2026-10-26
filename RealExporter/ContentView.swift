@@ -4,7 +4,6 @@ enum AppState {
     case selectSource
     case loading
     case summary
-    case hub
     case options
     case exporting
     case videoOptions
@@ -79,9 +78,8 @@ final class AppViewModel {
 
         exportOptions.startDate = startDate
         exportOptions.endDate = endDate
-        #if os(iOS)
         // Picked folders often hold other files, so export into a new one.
-        if let picked = exportOptions.destinationURL {
+        if let picked = exportOptions.destinationURL, Self.needsExportFolder(picked) {
             destinationAccess = ScopedAccess(picked)
             do {
                 exportOptions.destinationURL = try Exporter.makeExportFolder(in: picked)
@@ -91,7 +89,6 @@ final class AppViewModel {
                 return
             }
         }
-        #endif
         appState = .exporting
         exportState = .exporting
         exportResult = ExportResult()
@@ -167,7 +164,7 @@ final class AppViewModel {
         videoTask?.cancel()
     }
 
-    func returnToHub() {
+    func returnToSummary() {
         exportTask?.cancel()
         exportTask = nil
         videoTask?.cancel()
@@ -175,7 +172,7 @@ final class AppViewModel {
         clearDestinations()
         exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
         exportState = .exporting
-        appState = .hub
+        appState = .summary
     }
 
     func resetToStart() {
@@ -196,6 +193,17 @@ final class AppViewModel {
         exportProgress = ExportProgress(current: 0, total: 0, currentItem: "")
         exportState = .exporting
         appState = .selectSource
+    }
+
+    /// An empty folder on the Mac is exported into as is. iOS always gets a
+    /// new folder, since picking an empty one there is awkward.
+    private static func needsExportFolder(_ folder: URL) -> Bool {
+        #if os(macOS)
+        let contents = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        return contents.contains { !$0.hasPrefix(".") }
+        #else
+        true
+        #endif
     }
 
     private func clearDestinations() {
@@ -242,27 +250,14 @@ struct ContentView: View {
                             set: { viewModel.endDate = $0 }
                         ),
                         dateRange: data.dateRange,
-                        onContinue: {
-                            viewModel.appState = .hub
-                        },
-                        onBack: {
-                            viewModel.resetToStart()
-                        }
-                    )
-                }
-
-            case .hub:
-                if viewModel.loadedData != nil {
-                    HubView(
-                        beRealCount: viewModel.framesInRange.count,
                         onExportPhotos: {
                             viewModel.appState = .options
                         },
                         onCreateVideo: {
                             viewModel.appState = .videoOptions
                         },
-                        onBack: {
-                            viewModel.appState = .summary
+                        onStartOver: {
+                            viewModel.resetToStart()
                         }
                     )
                 }
@@ -279,7 +274,7 @@ struct ContentView: View {
                             viewModel.startExport()
                         },
                         onBack: {
-                            viewModel.appState = .hub
+                            viewModel.appState = .summary
                         }
                     )
                 }
@@ -295,7 +290,7 @@ struct ContentView: View {
                         viewModel.cancelExport()
                     },
                     onBack: {
-                        viewModel.returnToHub()
+                        viewModel.returnToSummary()
                     },
                     onDone: {
                         viewModel.resetToStart()
@@ -311,7 +306,7 @@ struct ContentView: View {
                             viewModel.startVideoGeneration()
                         },
                         onBack: {
-                            viewModel.appState = .hub
+                            viewModel.appState = .summary
                         }
                     )
                 }
@@ -326,7 +321,7 @@ struct ContentView: View {
                         viewModel.cancelVideoGeneration()
                     },
                     onBack: {
-                        viewModel.returnToHub()
+                        viewModel.returnToSummary()
                     },
                     onDone: {
                         viewModel.resetToStart()

@@ -51,16 +51,6 @@ extension View {
         self
         #endif
     }
-
-    /// Segmented on the Mac, a menu on iOS, where long option lists don't fit
-    /// across a phone.
-    func compactPickerStyle() -> some View {
-        #if os(macOS)
-        pickerStyle(.segmented)
-        #else
-        pickerStyle(.menu)
-        #endif
-    }
 }
 
 /// Keeps a user-picked, security-scoped URL readable and writable until this

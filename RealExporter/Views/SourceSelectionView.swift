@@ -51,6 +51,22 @@ struct SourceSelectionView: View {
     }
 
     private var dropZone: some View {
+        Button(action: pickSource) {
+            dropZoneLabel
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut("o")
+        .help("Choose a BeReal export (⌘O)")
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            selectedURL = url
+            return true
+        } isTargeted: { targeted in
+            isDragging = targeted
+        }
+    }
+
+    private var dropZoneLabel: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(
@@ -85,17 +101,6 @@ struct SourceSelectionView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
-        .onTapGesture(perform: pickSource)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction { pickSource() }
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first else { return false }
-            selectedURL = url
-            return true
-        } isTargeted: { targeted in
-            isDragging = targeted
-        }
     }
 
     private func pickSource() {

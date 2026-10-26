@@ -245,6 +245,7 @@ struct ExportProgressView: View {
                     onCancel()
                 }
                 .buttonStyle(.bordered)
+                .keyboardShortcut(.cancelAction)
 
             case .completed, .cancelled, .failed:
                 // Keeps the loaded data so another export doesn't need a re-import.
@@ -252,6 +253,8 @@ struct ExportProgressView: View {
                     onBack()
                 }
                 .buttonStyle(.bordered)
+                .keyboardShortcut(.cancelAction)
+                .help("Back to the summary, to export again")
 
                 Spacer()
 
@@ -259,6 +262,7 @@ struct ExportProgressView: View {
                     onDone()
                 }
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
         }
     }

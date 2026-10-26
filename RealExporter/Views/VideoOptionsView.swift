@@ -34,27 +34,25 @@ struct VideoOptionsView: View {
                         .font(.largeTitle)
                         .fontWeight(.bold)
 
-                    previewSection
-                        .padding(24)
-                        .cardStyle()
+                    PreviewAndSettings {
+                        previewSection
+                    } settings: {
+                        VStack(alignment: .leading, spacing: 24) {
+                            contentSection
 
-                    VStack(alignment: .leading, spacing: 24) {
-                        contentSection
+                            Divider()
 
-                        Divider()
+                            speedSection
 
-                        speedSection
+                            Divider()
 
-                        Divider()
+                            resolutionSection
 
-                        resolutionSection
+                            Divider()
 
-                        Divider()
-
-                        dateOverlaySection
+                            dateOverlaySection
+                        }
                     }
-                    .padding(24)
-                    .cardStyle()
                 }
                 .padding(.screenPadding)
             }
@@ -66,6 +64,7 @@ struct VideoOptionsView: View {
                     onBack()
                 }
                 .buttonStyle(.bordered)
+                .keyboardShortcut(.cancelAction)
 
                 Spacer()
 
@@ -82,6 +81,7 @@ struct VideoOptionsView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
                 .disabled(beRealCount == 0)
             }
             .padding(20)
@@ -96,7 +96,7 @@ struct VideoOptionsView: View {
                 overlayPosition: options.overlayPosition,
                 showDateOverlay: options.showDateOverlay
             ),
-            imageHeight: 240,
+            imageHeight: 320,
             render: { frame, options in
                 let image = try VideoGenerator.render(
                     frame,
@@ -125,7 +125,8 @@ struct VideoOptionsView: View {
                     Text(content.rawValue).tag(content)
                 }
             }
-            .compactPickerStyle()
+            .pickerStyle(.menu)
+            .fixedSize()
             .labelsHidden()
 
             if options.imageContent == .combinedBackMain || options.imageContent == .combinedFrontMain {
@@ -137,7 +138,8 @@ struct VideoOptionsView: View {
                         Text(position.rawValue).tag(position)
                     }
                 }
-                .compactPickerStyle()
+                .pickerStyle(.menu)
+                .fixedSize()
                 .labelsHidden()
             }
         }
@@ -181,6 +183,7 @@ struct VideoOptionsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
         }
     }
 
