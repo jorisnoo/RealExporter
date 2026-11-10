@@ -27,7 +27,7 @@
 - **Options:** a date range, and year/month/day folders or a flat folder.
 - **Preview:** see a BeReal exactly as it will be exported, or as a time-lapse frame, while you change the options.
 
-Everything runs locally. The app sends anonymous usage events via [Aptabase](https://aptabase.com); your photos never leave your Mac.
+Everything runs locally. The app sends anonymous usage events and error codes via [Aptabase](https://aptabase.com); your photos never leave your Mac.
 
 ## Requirements
 

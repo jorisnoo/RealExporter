@@ -64,6 +64,7 @@ final class AppViewModel {
                 self.isLoading = false
                 self.appState = .summary
             } catch {
+                Analytics.trackError(error)
                 self.errorMessage = error.localizedDescription
                 self.isLoading = false
                 self.appState = .selectSource
@@ -84,6 +85,7 @@ final class AppViewModel {
             do {
                 exportOptions.destinationURL = try Exporter.makeExportFolder(in: picked)
             } catch {
+                Analytics.trackError(error)
                 errorMessage = error.localizedDescription
                 destinationAccess = nil
                 return
@@ -115,6 +117,7 @@ final class AppViewModel {
             } catch let error as ExporterError where error == .cancelled {
                 self.exportState = .cancelled
             } catch {
+                Analytics.trackError(error)
                 self.exportState = .failed(error.localizedDescription)
             }
         }
@@ -155,6 +158,7 @@ final class AppViewModel {
             } catch VideoGeneratorError.cancelled {
                 self.exportState = .cancelled
             } catch {
+                Analytics.trackError(error)
                 self.exportState = .failed(error.localizedDescription)
             }
         }
